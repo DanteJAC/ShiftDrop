@@ -15,4 +15,5 @@ dependencies = [
     "pyqt6>=6.11.0",
     "python-docx>=1.2.0",
     "pywin32>=312",
+    "reportlab>=5.0.1",
 ]

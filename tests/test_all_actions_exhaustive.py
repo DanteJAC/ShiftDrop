@@ -268,5 +268,9 @@ class TestAllActionsExhaustive(unittest.TestCase):
         res = execute_action("compress", [self.docx_doc, self.txt_doc])
         self._verify_result(res, ".zip")
 
+    def test_47_doc_to_docx_from_txt(self):
+        res = execute_action("doc_to_docx", [self.txt_doc])
+        self._verify_result(res, ".docx")
+
 if __name__ == "__main__":
     unittest.main()

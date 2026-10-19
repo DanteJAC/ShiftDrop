@@ -122,6 +122,33 @@ class TestDocOps(unittest.TestCase):
         doc = docx.Document(str(docx_out))
         self.assertTrue(len(doc.paragraphs) > 0)
 
+    def test_txt_to_docx_direct(self):
+        from shiftdrop.core.doc_ops import doc_to_docx
+        out_docx = doc_to_docx(self.txt_file)
+        self.assertTrue(out_docx.exists())
+        self.assertEqual(out_docx.suffix, ".docx")
+        self.assertEqual(out_docx.parent, self.temp_path)
+        d = docx.Document(str(out_docx))
+        self.assertTrue(len(d.paragraphs) > 0)
+
+    def test_dispatcher_txt_to_pdf_and_word(self):
+        # 1. TXT -> PDF via dispatcher
+        res_pdf = execute_action("doc_to_pdf", [self.txt_file])
+        self.assertEqual(len(res_pdf), 1)
+        self.assertTrue(res_pdf[0].exists())
+        self.assertEqual(res_pdf[0].suffix, ".pdf")
+        self.assertEqual(res_pdf[0].parent, self.temp_path)
+        _validate_pdf_file(res_pdf[0])
+
+        # 2. TXT -> Word (.docx) via dispatcher
+        res_docx = execute_action("doc_to_docx", [self.txt_file])
+        self.assertEqual(len(res_docx), 1)
+        self.assertTrue(res_docx[0].exists())
+        self.assertEqual(res_docx[0].suffix, ".docx")
+        self.assertEqual(res_docx[0].parent, self.temp_path)
+        d = docx.Document(str(res_docx[0]))
+        self.assertTrue(len(d.paragraphs) > 0)
+
     def test_dispatcher_document_actions(self):
         # Dispatcher doc_to_txt
         res = execute_action("doc_to_txt", [self.docx_file])

@@ -16,7 +16,7 @@ from shiftdrop.core.pdf_ops import (
     merge_pdfs, pdf_to_images, compress_pdf, split_pdf
 )
 from shiftdrop.core.doc_ops import (
-    doc_to_pdf, pdf_to_docx, doc_to_txt
+    doc_to_pdf, pdf_to_docx, doc_to_docx, doc_to_txt
 )
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".ico", ".tiff", ".gif", ".svg", ".heic"}
@@ -340,7 +340,7 @@ def execute_action(
             if p.suffix.lower() == ".pdf" or inspect_file_type(p) == "pdf":
                 results.append(pdf_to_docx(p, output_dir=output_dir))
             else:
-                results.append(doc_to_pdf(p, output_dir=output_dir))
+                results.append(doc_to_docx(p, output_dir=output_dir))
     elif action_id == "doc_to_images":
         for p in paths:
             if p.suffix.lower() == ".pdf":

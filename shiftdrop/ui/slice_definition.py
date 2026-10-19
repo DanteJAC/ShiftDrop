@@ -89,7 +89,8 @@ SUB_MENUS: dict[str, list[RadialSlice]] = {
 
     # --- DOCUMENT SUB-MENUS ---
     "sub_doc_more": [
-        RadialSlice("pdf_to_docx", "A Word .docx", "📑", "Convertir a formato editable Word", "#2B579A", badge="Word"),
+        RadialSlice("doc_to_docx", "A Word .docx", "📑", "Convertir a formato editable Word", "#2B579A", badge="Word"),
+        RadialSlice("doc_to_pdf", "A PDF", "📄", "Convertir a documento PDF", "#D500F9", badge="PDF"),
         RadialSlice("doc_to_images", "Páginas a JPG", "📸", "Exportar páginas a imágenes JPG", "#FFD600", params={"format": "jpg"}),
         RadialSlice("doc_to_images", "Páginas a PNG", "🖼️", "Exportar páginas a imágenes PNG HD", "#00E676", params={"format": "png"}, badge="HD"),
     ],
@@ -164,7 +165,8 @@ PDF_MULTI_SLICES = [
 
 # Slices when dragging a Document (.docx, .doc, .txt, .rtf, .odt, .xlsx, .pptx)
 DOCUMENT_SLICES = [
-    RadialSlice("doc_to_pdf", "A PDF", "📄", "Convertir documento a PDF listo para compartir", "#D500F9", badge="Nativo"),
+    RadialSlice("doc_to_pdf", "A PDF", "📄", "Convertir documento a PDF listo para compartir", "#D500F9", badge="PDF"),
+    RadialSlice("doc_to_docx", "A Word .docx", "📑", "Convertir a documento Word editable", "#2B579A", badge="Word"),
     RadialSlice("doc_to_txt", "A Texto .txt", "📝", "Extraer texto plano del documento", "#00E5FF"),
     RadialSlice("doc_to_images", "A Imágenes PNG", "🖼️", "Renderizar páginas a imágenes PNG", "#00E676"),
     RadialSlice("compress", "Comprimir .zip", "🗜️", "Empaquetar y comprimir en archivo ZIP", "#FF9100", badge="ZIP"),
@@ -174,6 +176,7 @@ DOCUMENT_SLICES = [
 # Slices when dragging multiple Documents
 DOC_MULTI_SLICES = [
     RadialSlice("doc_to_pdf", "Todos a PDF", "📄", "Convertir cada documento a PDF en lote", "#D500F9", badge="Lote"),
+    RadialSlice("doc_to_docx", "Todos a Word", "📑", "Convertir cada documento a Word .docx", "#2B579A", badge="Word"),
     RadialSlice("doc_to_txt", "Extraer Textos", "📝", "Extraer textos a archivos .txt", "#00E5FF"),
     RadialSlice("compress", "Comprimir Lote", "🗜️", "Empaquetar todos en un ZIP comprimido", "#FF9100", badge="ZIP"),
     RadialSlice("doc_to_images", "A Imágenes", "🖼️", "Convertir todos a imágenes PNG", "#00E676"),
