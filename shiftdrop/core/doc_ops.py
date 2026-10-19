@@ -122,6 +122,8 @@ def pdf_to_docx(input_path: Path | str, output_dir: Optional[Path | str] = None)
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
     target_path = out_dir / f"{input_path.stem}.docx"
+    if target_path.resolve() == input_path.resolve():
+        target_path = out_dir / f"{input_path.stem}_converted.docx"
 
     # 1. Try high-fidelity pdf2docx
     try:
@@ -169,6 +171,8 @@ def doc_to_txt(input_path: Path | str, output_dir: Optional[Path | str] = None) 
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
     target_path = out_dir / f"{input_path.stem}.txt"
+    if target_path.resolve() == input_path.resolve():
+        target_path = out_dir / f"{input_path.stem}_converted.txt"
 
     ext = input_path.suffix.lower()
     text_content = ""

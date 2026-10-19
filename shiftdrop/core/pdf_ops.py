@@ -95,8 +95,13 @@ def compress_pdf(
     writer = pypdf.PdfWriter()
 
     for page in reader.pages:
-        page.compress_content_streams()  # Flate compression
         writer.add_page(page)
+
+    for page in writer.pages:
+        try:
+            page.compress_content_streams()  # Flate compression
+        except Exception:
+            pass
 
     writer.add_metadata(reader.metadata or {})
     with open(target, "wb") as f:
