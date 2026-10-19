@@ -81,8 +81,17 @@ SUB_MENUS: dict[str, list[RadialSlice]] = {
         RadialSlice("pdf_split", "De a 5", "📚", "Divide en bloques de 5 páginas", "#FF9E80", params={"pages": 5}, badge="5 Págs"),
     ],
     "sub_pdf_more": [
+        RadialSlice("pdf_to_docx", "A Word .docx", "📑", "Convertir PDF a documento Word editable", "#2B579A", badge="Word"),
         RadialSlice("pdf_to_images", "Páginas a JPG", "📸", "Exporta cada página en JPG", "#FFD600", params={"format": "jpg"}),
         RadialSlice("pdf_to_images", "Páginas a PNG", "🖼️", "Exporta cada página en PNG HD", "#00E676", params={"format": "png"}, badge="HD"),
+        RadialSlice("doc_to_txt", "Extraer a TXT", "📝", "Extraer texto a archivo .txt", "#00E5FF"),
+    ],
+
+    # --- DOCUMENT SUB-MENUS ---
+    "sub_doc_more": [
+        RadialSlice("pdf_to_docx", "A Word .docx", "📑", "Convertir a formato editable Word", "#2B579A", badge="Word"),
+        RadialSlice("doc_to_images", "Páginas a JPG", "📸", "Exportar páginas a imágenes JPG", "#FFD600", params={"format": "jpg"}),
+        RadialSlice("doc_to_images", "Páginas a PNG", "🖼️", "Exportar páginas a imágenes PNG HD", "#00E676", params={"format": "png"}, badge="HD"),
     ],
 }
 
@@ -137,8 +146,10 @@ AUDIO_SLICES = [
 
 # Slices when dragging a single PDF
 PDF_SLICES = [
+    RadialSlice("pdf_to_docx", "A Word .docx", "📑", "Convertir a documento Word editable", "#2B579A", badge="Word"),
     RadialSlice("pdf_to_images", "Extraer PNG", "🖼️", "Convertir páginas a imágenes PNG", "#00E5FF"),
     RadialSlice("pdf_compress", "Comprimir PDF", "🗜️", "Reducir tamaño del documento", "#FF9100"),
+    RadialSlice("doc_to_txt", "Extraer Texto", "📝", "Extraer todo el texto a .txt", "#00E676"),
     RadialSlice("", "Dividir PDF ▸", "✂️", "Separar por páginas", "#FF3D00", sub_menu_id="sub_pdf_split"),
     RadialSlice("", "Más Opciones ▸", "✨", "Exportar a JPG y opciones", "#3D5AFE", sub_menu_id="sub_pdf_more"),
 ]
@@ -151,12 +162,30 @@ PDF_MULTI_SLICES = [
     RadialSlice("", "Más Opciones ▸", "✨", "Opciones adicionales", "#3D5AFE", sub_menu_id="sub_pdf_more"),
 ]
 
+# Slices when dragging a Document (.docx, .doc, .txt, .rtf, .odt, .xlsx, .pptx)
+DOCUMENT_SLICES = [
+    RadialSlice("doc_to_pdf", "A PDF", "📄", "Convertir documento a PDF listo para compartir", "#D500F9", badge="Nativo"),
+    RadialSlice("doc_to_txt", "A Texto .txt", "📝", "Extraer texto plano del documento", "#00E5FF"),
+    RadialSlice("doc_to_images", "A Imágenes PNG", "🖼️", "Renderizar páginas a imágenes PNG", "#00E676"),
+    RadialSlice("compress", "Comprimir .zip", "🗜️", "Empaquetar y comprimir en archivo ZIP", "#FF9100", badge="ZIP"),
+    RadialSlice("", "Más Opciones ▸", "✨", "Formatos y opciones adicionales", "#3D5AFE", sub_menu_id="sub_doc_more"),
+]
+
+# Slices when dragging multiple Documents
+DOC_MULTI_SLICES = [
+    RadialSlice("doc_to_pdf", "Todos a PDF", "📄", "Convertir cada documento a PDF en lote", "#D500F9", badge="Lote"),
+    RadialSlice("doc_to_txt", "Extraer Textos", "📝", "Extraer textos a archivos .txt", "#00E5FF"),
+    RadialSlice("compress", "Comprimir Lote", "🗜️", "Empaquetar todos en un ZIP comprimido", "#FF9100", badge="ZIP"),
+    RadialSlice("doc_to_images", "A Imágenes", "🖼️", "Convertir todos a imágenes PNG", "#00E676"),
+]
+
 # Generic fallback when no specific category is pre-detected: provides direct access to all categories
 GENERIC_SLICES = [
     RadialSlice("", "Imágenes ▸", "🖼️", "WebP, PNG, JPG, Recortar, Comprimir", "#00E5FF", sub_menu_id="sub_cat_images"),
     RadialSlice("", "Videos ▸", "🎬", "MP4, GIF, Extraer Audio, Comprimir", "#FF007F", sub_menu_id="sub_cat_videos"),
     RadialSlice("", "Audios ▸", "🎵", "MP3, WAV, FLAC, Normalizar", "#00E676", sub_menu_id="sub_cat_audios"),
-    RadialSlice("", "Documentos ▸", "📄", "Combinar PDF, Extraer PNG, Comprimir", "#D500F9", sub_menu_id="sub_cat_pdfs"),
+    RadialSlice("", "Documentos ▸", "📄", "Word a PDF, Texto, Imágenes", "#D500F9", sub_menu_id="sub_cat_docs"),
+    RadialSlice("", "PDFs ▸", "📑", "A Word, Extraer PNG, Comprimir", "#2B579A", sub_menu_id="sub_cat_pdfs"),
     RadialSlice("compress", "Comprimir", "🗜️", "Comprimir archivos a ZIP / reducido", "#FF9100"),
     RadialSlice("", "100+ Formatos ▸", "✨", "Explorar catálogo completo de formatos", "#3D5AFE", sub_menu_id="sub_img_more"),
 ]
@@ -166,6 +195,7 @@ SUB_MENUS["sub_cat_images"] = IMAGE_SLICES
 SUB_MENUS["sub_cat_videos"] = VIDEO_SLICES
 SUB_MENUS["sub_cat_audios"] = AUDIO_SLICES
 SUB_MENUS["sub_cat_pdfs"] = PDF_SLICES
+SUB_MENUS["sub_cat_docs"] = DOCUMENT_SLICES
 
 def get_slices_for_category(category: str) -> list[RadialSlice]:
     mapping = {
@@ -175,6 +205,8 @@ def get_slices_for_category(category: str) -> list[RadialSlice]:
         "audio": AUDIO_SLICES,
         "pdf": PDF_SLICES,
         "pdf_multi": PDF_MULTI_SLICES,
+        "document": DOCUMENT_SLICES,
+        "doc_multi": DOC_MULTI_SLICES,
     }
     return mapping.get(category, GENERIC_SLICES)
 

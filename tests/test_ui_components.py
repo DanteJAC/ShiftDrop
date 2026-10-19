@@ -35,7 +35,7 @@ class TestUIComponents(unittest.TestCase):
         # Back navigation
         menu._navigate_back()
         self.assertEqual(len(menu.menu_history), 0)
-        self.assertEqual(menu.current_title, "Principal")
+        self.assertEqual(menu.current_title, "Imagen")
 
     def test_instant_execution_and_persisting_radial_menu(self):
         menu = RadialMenuOverlay()

@@ -8,7 +8,8 @@ from shiftdrop.listener.explorer_helper import get_selected_files_in_explorer
 from shiftdrop.core.dispatcher import execute_action, detect_file_category
 from shiftdrop.ui.slice_definition import (
     get_slices_for_category, SUB_MENUS, GENERIC_SLICES,
-    IMAGE_SLICES, VIDEO_SLICES, AUDIO_SLICES, PDF_SLICES
+    IMAGE_SLICES, VIDEO_SLICES, AUDIO_SLICES, PDF_SLICES,
+    DOCUMENT_SLICES, DOC_MULTI_SLICES
 )
 
 class TestRecognitionAndDispatch(unittest.TestCase):
@@ -35,7 +36,10 @@ class TestRecognitionAndDispatch(unittest.TestCase):
         self.assertIsInstance(res, list)
 
     def test_all_slices_have_valid_dispatcher_or_sub_menu(self):
-        all_slice_groups = [IMAGE_SLICES, VIDEO_SLICES, AUDIO_SLICES, PDF_SLICES, GENERIC_SLICES]
+        all_slice_groups = [
+            IMAGE_SLICES, VIDEO_SLICES, AUDIO_SLICES, PDF_SLICES,
+            DOCUMENT_SLICES, DOC_MULTI_SLICES, GENERIC_SLICES
+        ]
         for sub_id, sub_slices in SUB_MENUS.items():
             all_slice_groups.append(sub_slices)
 
@@ -54,6 +58,7 @@ class TestRecognitionAndDispatch(unittest.TestCase):
         self.assertIn("sub_cat_videos", cat_slice_ids)
         self.assertIn("sub_cat_audios", cat_slice_ids)
         self.assertIn("sub_cat_pdfs", cat_slice_ids)
+        self.assertIn("sub_cat_docs", cat_slice_ids)
 
     def test_compress_generic_dispatcher(self):
         # Test generic compress on image

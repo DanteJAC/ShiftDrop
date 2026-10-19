@@ -91,7 +91,18 @@ class RadialMenuOverlay(QWidget):
         self.current_category = detect_file_category([Path(f) for f in files])
         self.slices = get_slices_for_category(self.current_category)
         self.menu_history.clear()
-        self.current_title = "Principal"
+        category_titles = {
+            "image": "Imagen",
+            "image_multi": "Lote Imágenes",
+            "video": "Video",
+            "audio": "Audio",
+            "pdf": "PDF",
+            "pdf_multi": "Lote PDFs",
+            "document": "Documento",
+            "doc_multi": "Lote Documentos",
+            "generic": "ShiftDrop",
+        }
+        self.current_title = category_titles.get(self.current_category, "Principal")
         self.state = "ready"
         self.update()
 
@@ -498,7 +509,17 @@ class RadialMenuOverlay(QWidget):
                 if len(first_name) > 15:
                     first_name = first_name[:12] + "..."
                 painter.setFont(QFont("Segoe UI Emoji", 16))
-                cat_icons = {"image": "🖼️", "video": "🎬", "audio": "🎵", "pdf": "📄", "pdf_multi": "📑", "image_multi": "🖼️"}
+                cat_icons = {
+                    "image": "🖼️",
+                    "image_multi": "🖼️",
+                    "video": "🎬",
+                    "audio": "🎵",
+                    "pdf": "📑",
+                    "pdf_multi": "📚",
+                    "document": "📄",
+                    "doc_multi": "📑",
+                    "generic": "📦",
+                }
                 painter.drawText(QRectF(cx - 40, cy - 36, 80, 28), Qt.AlignmentFlag.AlignCenter, cat_icons.get(self.current_category, "📦"))
                 painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
                 painter.setPen(QPen(QColor(240, 245, 255)))

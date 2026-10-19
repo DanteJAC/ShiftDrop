@@ -8,6 +8,7 @@ Este archivo registra el historial de banderas del proyecto para permitir volver
 | **Bandera 2** | `bandera-2` | Motores de conversión 100% locales con FFmpeg 7.1, Pillow, PyPDF y PyPDFium2. | ✅ Completada |
 | **Bandera 3** | `bandera-3` | Sistema Radial Multinivel (Cascading Pie Menu) y guardado en la misma carpeta. | ✅ Completada |
 | **Bandera 4** | `bandera-4` | Reconocimiento infalible de archivos en Windows (COM Shell + NoActivate) y ejecución total de opciones. | ✅ Completada |
+| **Bandera 5** | `bandera-5` | Reconocimiento nativo de Documentos (.docx, .doc, .txt, .rtf), corrección del error 'PK\x03\x04' en PDFs y opciones radiales completas. | ✅ Completada |
 
 ---
 

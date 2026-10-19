@@ -6,6 +6,21 @@ from typing import Optional
 import pypdf
 import pypdfium2 as pdfium
 
+def _validate_pdf_file(p: Path) -> None:
+    if not p.exists():
+        raise FileNotFoundError(f"Archivo no encontrado: {p}")
+    if p.stat().st_size < 10:
+        raise ValueError(f"El archivo '{p.name}' está vacío.")
+    with open(p, "rb") as f:
+        head = f.read(5)
+        if not head.startswith(b"%PDF"):
+            if head.startswith(b"PK"):
+                raise ValueError(
+                    f"'{p.name}' es un documento Word/ZIP (.docx), no un PDF. "
+                    f"Usa la opción 'A PDF' para convertirlo primero."
+                )
+            raise ValueError(f"'{p.name}' no es un archivo PDF válido.")
+
 def merge_pdfs(
     pdf_paths: list[Path | str],
     output_path: Optional[Path | str] = None
@@ -15,6 +30,9 @@ def merge_pdfs(
     """
     if not pdf_paths:
         raise ValueError("No se proporcionaron archivos PDF para combinar.")
+
+    for p in pdf_paths:
+        _validate_pdf_file(Path(p))
 
     first_pdf = Path(pdf_paths[0])
     target = Path(output_path) if output_path else first_pdf.parent / f"{first_pdf.stem}_merged.pdf"
@@ -41,6 +59,7 @@ def pdf_to_images(
     Converts all pages of a PDF to high-resolution images.
     """
     input_path = Path(input_path)
+    _validate_pdf_file(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent / f"{input_path.stem}_images"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -68,6 +87,7 @@ def compress_pdf(
     Compresses PDF streams and removes duplicate objects.
     """
     input_path = Path(input_path)
+    _validate_pdf_file(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
     target = out_dir / f"{input_path.stem}_min.pdf"
 
@@ -94,6 +114,7 @@ def split_pdf(
     Splits a PDF into individual pages or batches of N pages.
     """
     input_path = Path(input_path)
+    _validate_pdf_file(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent / f"{input_path.stem}_split"
     out_dir.mkdir(parents=True, exist_ok=True)
 

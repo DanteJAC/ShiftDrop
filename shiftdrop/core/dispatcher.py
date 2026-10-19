@@ -15,24 +15,30 @@ from shiftdrop.core.audio_ops import (
 from shiftdrop.core.pdf_ops import (
     merge_pdfs, pdf_to_images, compress_pdf, split_pdf
 )
+from shiftdrop.core.doc_ops import (
+    doc_to_pdf, pdf_to_docx, doc_to_txt
+)
 
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".ico", ".tiff", ".gif"}
-VIDEO_EXTENSIONS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".wmv", ".m4v"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".ico", ".tiff", ".gif", ".svg", ".heic"}
+VIDEO_EXTENSIONS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".wmv", ".m4v", ".ts"}
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".opus", ".wma"}
 PDF_EXTENSIONS = {".pdf"}
+DOC_EXTENSIONS = {".docx", ".doc", ".txt", ".rtf", ".odt", ".md", ".csv", ".xlsx", ".xls", ".pptx", ".ppt"}
 
 def detect_file_category(paths: list[Path | str]) -> str:
     """
-    Returns 'image', 'video', 'audio', 'pdf', 'mixed' based on the input paths.
+    Returns 'image', 'video', 'audio', 'pdf', 'document', 'pdf_multi', 'image_multi' or 'generic'.
     """
     if not paths:
-        return "empty"
+        return "generic"
     
     exts = [Path(p).suffix.lower() for p in paths]
     if len(paths) > 1 and all(e in PDF_EXTENSIONS for e in exts):
         return "pdf_multi"
     if len(paths) > 1 and all(e in IMAGE_EXTENSIONS for e in exts):
         return "image_multi"
+    if len(paths) > 1 and all(e in DOC_EXTENSIONS for e in exts):
+        return "doc_multi"
 
     first_ext = exts[0]
     if first_ext in IMAGE_EXTENSIONS:
@@ -43,6 +49,8 @@ def detect_file_category(paths: list[Path | str]) -> str:
         return "audio"
     elif first_ext in PDF_EXTENSIONS:
         return "pdf"
+    elif first_ext in DOC_EXTENSIONS:
+        return "document"
     else:
         return "generic"
 
@@ -219,6 +227,27 @@ def execute_action(
                 for p in paths:
                     zf.write(p, p.name)
             results.append(target_zip)
+
+    # --- DOCUMENT ACTIONS ---
+    elif action_id == "doc_to_pdf":
+        for p in paths:
+            results.append(doc_to_pdf(p, output_dir=output_dir))
+    elif action_id == "doc_to_txt":
+        for p in paths:
+            results.append(doc_to_txt(p, output_dir=output_dir))
+    elif action_id == "pdf_to_docx" or action_id == "doc_to_docx":
+        for p in paths:
+            if p.suffix.lower() == ".pdf":
+                results.append(pdf_to_docx(p, output_dir=output_dir))
+            else:
+                results.append(doc_to_pdf(p, output_dir=output_dir))
+    elif action_id == "doc_to_images":
+        for p in paths:
+            if p.suffix.lower() == ".pdf":
+                results.extend(pdf_to_images(p, output_format=params.get("format", "png"), output_dir=output_dir))
+            else:
+                pdf_temp = doc_to_pdf(p, output_dir=output_dir)
+                results.extend(pdf_to_images(pdf_temp, output_format=params.get("format", "png"), output_dir=output_dir))
 
     else:
         raise ValueError(f"Acción no reconocida: {action_id}")
