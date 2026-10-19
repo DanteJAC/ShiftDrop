@@ -1,0 +1,168 @@
+"""
+Radial Slice Definitions: Defines the contextual radial menu options and nested sub-radial wheels.
+"""
+from dataclasses import dataclass
+from typing import Optional, Any
+
+@dataclass
+class RadialSlice:
+    action_id: str
+    title: str
+    icon: str
+    subtitle: str
+    color: str  # Hex accent color
+    sub_menu_id: Optional[str] = None  # If set, clicking/dropping opens this sub-radial wheel
+    params: Optional[dict[str, Any]] = None  # Baked parameters for instant execution
+    badge: Optional[str] = None
+
+# ============================================================================
+# SUB-RADIAL WHEELS (Tier 2 Menus)
+# ============================================================================
+
+SUB_MENUS: dict[str, list[RadialSlice]] = {
+    # --- IMAGE SUB-MENUS ---
+    "sub_img_compress": [
+        RadialSlice("img_compress", "Equilibrado", "⚖️", "Calidad 70% recomendada", "#FF9100", params={"quality": 70}, badge="70%"),
+        RadialSlice("img_compress", "Máx. Ahorro", "🗜️", "Calidad 40% ultra ligera", "#FF6D00", params={"quality": 40}, badge="40%"),
+        RadialSlice("img_compress", "Alta Calidad", "💎", "Calidad 88% nítida", "#FFAB00", params={"quality": 88}, badge="88%"),
+        RadialSlice("img_compress", "Para Web", "🌐", "Calidad 60% + máx 1280px", "#FFD600", params={"quality": 60, "max_dimension": 1280}),
+    ],
+    "sub_img_crop": [
+        RadialSlice("img_crop_resize", "1:1 Cuadrado", "🟦", "Avatares, Instagram y logos", "#FF3D00", params={"aspect_ratio": "1:1"}, badge="1:1"),
+        RadialSlice("img_crop_resize", "16:9 Panorámico", "🖥️", "Pantallas y fondos de escritorio", "#FF6E40", params={"aspect_ratio": "16:9"}, badge="16:9"),
+        RadialSlice("img_crop_resize", "9:16 Vertical", "📱", "Reels, TikTok y Stories", "#FF9E80", params={"aspect_ratio": "9:16"}, badge="9:16"),
+        RadialSlice("img_crop_resize", "4:3 Clásico", "📸", "Formato de fotografía clásico", "#FF5252", params={"aspect_ratio": "4:3"}, badge="4:3"),
+        RadialSlice("img_crop_resize", "50% Mitad", "📉", "Reduce resolución al 50%", "#FF1744", params={"scale_percent": 0.5}, badge="50%"),
+        RadialSlice("img_crop_resize", "25% Miniatura", "🔍", "Reduce resolución al 25%", "#D50000", params={"scale_percent": 0.25}, badge="25%"),
+    ],
+    "sub_img_more": [
+        RadialSlice("img_to_ico", "Icono .ICO", "🏷️", "Icono multi-tamaño para Windows", "#7C4DFF", badge="Windows"),
+        RadialSlice("img_to_bmp", "BMP", "🖼️", "Bitmap sin compresión", "#651FFF"),
+        RadialSlice("img_to_tiff", "TIFF", "🖨️", "Formato de imprenta alta calidad", "#3D5AFE"),
+        RadialSlice("img_to_gif", "GIF", "🎞️", "Imagen en paleta GIF", "#00B0FF"),
+        RadialSlice("img_to_pdf", "PDF", "📄", "Envolver imagen en documento PDF", "#D500F9"),
+    ],
+
+    # --- VIDEO SUB-MENUS ---
+    "sub_vid_compress": [
+        RadialSlice("vid_compress", "Equilibrado", "⚖️", "CRF 28 (50-70% ahorro de tamaño)", "#FF9100", params={"crf": 28}, badge="Recomendado"),
+        RadialSlice("vid_compress", "Máx. Ahorro", "🗜️", "CRF 32 + 720p (Ultra ligero)", "#FF6D00", params={"crf": 32, "max_height": 720}, badge="720p"),
+        RadialSlice("vid_compress", "Alta Fidelidad", "💎", "CRF 22 (Preserva todo detalle)", "#FFAB00", params={"crf": 22}),
+    ],
+    "sub_vid_trim": [
+        RadialSlice("vid_trim", "Primeros 15s", "⚡", "Recorta del segundo 0 al 15", "#FF3D00", params={"start_sec": 0, "duration_sec": 15}, badge="15s"),
+        RadialSlice("vid_trim", "Primeros 30s", "⏱️", "Recorta del segundo 0 al 30", "#FF6E40", params={"start_sec": 0, "duration_sec": 30}, badge="30s"),
+        RadialSlice("vid_trim", "Primer 1 min", "⏳", "Recorta del segundo 0 al 60", "#FF9E80", params={"start_sec": 0, "duration_sec": 60}, badge="1m"),
+        RadialSlice("vid_trim", "Primeros 5 min", "🎬", "Recorta del segundo 0 al 300", "#FF5252", params={"start_sec": 0, "duration_sec": 300}, badge="5m"),
+    ],
+    "sub_vid_more": [
+        RadialSlice("vid_to_mkv", "MKV", "📦", "Contenedor Matroska universal", "#7C4DFF"),
+        RadialSlice("vid_to_mov", "MOV ProRes", "🎥", "Formato QuickTime para edición", "#651FFF"),
+        RadialSlice("vid_to_avi", "AVI", "📼", "Formato clásico AVI", "#3D5AFE"),
+        RadialSlice("vid_mute", "Silenciar Video", "🔇", "Eliminar pista de audio completa", "#FF1744", badge="Sin Audio"),
+    ],
+
+    # --- AUDIO SUB-MENUS ---
+    "sub_aud_trim": [
+        RadialSlice("aud_trim", "Primeros 30s", "⏱️", "Ideal para ringtones / avisos", "#FF3D00", params={"start_sec": 0, "duration_sec": 30}, badge="30s"),
+        RadialSlice("aud_trim", "Primer 1 min", "⏳", "Corta el primer minuto", "#FF6E40", params={"start_sec": 0, "duration_sec": 60}, badge="1m"),
+        RadialSlice("aud_trim", "Primeros 3 min", "🎵", "Corta los primeros 3 minutos", "#FF9E80", params={"start_sec": 0, "duration_sec": 180}, badge="3m"),
+    ],
+    "sub_aud_more": [
+        RadialSlice("aud_to_ogg", "OGG Vorbis", "🎼", "Formato libre de alta calidad", "#7C4DFF"),
+        RadialSlice("aud_to_opus", "Opus", "🌐", "Audio ultra optimizado para voz/web", "#3D5AFE", badge="Opus"),
+        RadialSlice("aud_to_aac", "AAC / M4A", "📱", "Codec estándar de Apple", "#00B0FF"),
+    ],
+
+    # --- PDF SUB-MENUS ---
+    "sub_pdf_split": [
+        RadialSlice("pdf_split", "1 en 1", "📑", "Separa cada página individual", "#FF3D00", params={"pages": 1}, badge="Pág/Pág"),
+        RadialSlice("pdf_split", "De a 2", "📄", "Divide en bloques de 2 páginas", "#FF6E40", params={"pages": 2}, badge="2 Págs"),
+        RadialSlice("pdf_split", "De a 5", "📚", "Divide en bloques de 5 páginas", "#FF9E80", params={"pages": 5}, badge="5 Págs"),
+    ],
+    "sub_pdf_more": [
+        RadialSlice("pdf_to_images", "Páginas a JPG", "📸", "Exporta cada página en JPG", "#FFD600", params={"format": "jpg"}),
+        RadialSlice("pdf_to_images", "Páginas a PNG", "🖼️", "Exporta cada página en PNG HD", "#00E676", params={"format": "png"}, badge="HD"),
+    ],
+}
+
+# ============================================================================
+# ROOT CONTEXTUAL WHEELS (Tier 1 Menus)
+# ============================================================================
+
+# Slices when dragging an Image
+IMAGE_SLICES = [
+    RadialSlice("img_to_webp", "WebP", "⚡", "Convertir a WebP instantáneo", "#00E5FF", badge="Web"),
+    RadialSlice("img_to_png", "PNG", "🖼️", "Convertir a PNG transparente", "#00E676"),
+    RadialSlice("img_to_jpg", "JPG", "📸", "Convertir a JPG estándar", "#FFD600"),
+    RadialSlice("", "Comprimir ▸", "🗜️", "Opciones de nivel de compresión", "#FF9100", sub_menu_id="sub_img_compress"),
+    RadialSlice("", "Recortar ▸", "✂️", "Proporciones y tamaños", "#FF3D00", sub_menu_id="sub_img_crop"),
+    RadialSlice("img_to_pdf", "A PDF", "📄", "Crear documento PDF con la imagen", "#D500F9"),
+    RadialSlice("img_to_ico", "Icono ICO", "🏷️", "Icono .ico para Windows", "#7C4DFF"),
+    RadialSlice("", "Más Formatos ▸", "✨", "BMP, TIFF, GIF y más", "#3D5AFE", sub_menu_id="sub_img_more"),
+]
+
+# Slices when dragging multiple Images
+IMAGE_MULTI_SLICES = [
+    RadialSlice("img_to_pdf", "Combinar PDF", "📑", "Unir todas en un solo documento PDF", "#D500F9", badge="Multi"),
+    RadialSlice("img_to_webp", "Todas WebP", "⚡", "Convertir lote completo a WebP", "#00E5FF"),
+    RadialSlice("img_to_png", "Todas PNG", "🖼️", "Convertir lote completo a PNG", "#00E676"),
+    RadialSlice("img_to_jpg", "Todas JPG", "📸", "Convertir lote completo a JPG", "#FFD600"),
+    RadialSlice("", "Comprimir Lote ▸", "🗜️", "Reducir peso de todas", "#FF9100", sub_menu_id="sub_img_compress"),
+    RadialSlice("", "Más Opciones ▸", "✨", "Formatos adicionales para lote", "#3D5AFE", sub_menu_id="sub_img_more"),
+]
+
+# Slices when dragging a Video
+VIDEO_SLICES = [
+    RadialSlice("vid_to_mp4", "MP4", "🎬", "Convertir a MP4 universal (H.264)", "#00E5FF", badge="H.264"),
+    RadialSlice("vid_to_gif", "GIF Animado", "🎞️", "Convertir a GIF de alta calidad", "#FF007F"),
+    RadialSlice("vid_extract_mp3", "Extraer MP3", "🎵", "Pista de audio MP3 a 320 kbps", "#00E676", badge="320k"),
+    RadialSlice("", "Comprimir ▸", "🗜️", "Reducir peso del video", "#FF9100", sub_menu_id="sub_vid_compress"),
+    RadialSlice("", "Recortar / Trim ▸", "⏱️", "Cortar duración (15s, 30s, 1m...)", "#FF3D00", sub_menu_id="sub_vid_trim"),
+    RadialSlice("vid_to_webm", "WebM", "🌐", "Formato WebM para navegador", "#7C4DFF"),
+    RadialSlice("vid_extract_wav", "Extraer WAV", "🎼", "Audio PCM sin comprimir", "#FFD600"),
+    RadialSlice("", "Más Formatos ▸", "✨", "MKV, MOV, AVI, Silenciar...", "#3D5AFE", sub_menu_id="sub_vid_more"),
+]
+
+# Slices when dragging an Audio file
+AUDIO_SLICES = [
+    RadialSlice("aud_to_mp3", "MP3", "🎵", "Convertir a MP3 (320 kbps)", "#00E5FF", badge="320k"),
+    RadialSlice("aud_to_wav", "WAV", "🎼", "Convertir a WAV (Lossless)", "#00E676"),
+    RadialSlice("aud_to_flac", "FLAC", "💿", "Calidad de estudio sin pérdida", "#FFD600"),
+    RadialSlice("aud_to_m4a", "M4A / AAC", "📱", "Formato nativo para Apple", "#D500F9"),
+    RadialSlice("aud_normalize", "Normalizar", "🔊", "Normalizar volumen uniforme EBU R128", "#FF9100"),
+    RadialSlice("", "Recortar ▸", "✂️", "Ajustar duración de audio", "#FF3D00", sub_menu_id="sub_aud_trim"),
+    RadialSlice("", "Más Formatos ▸", "✨", "OGG, Opus, AAC...", "#3D5AFE", sub_menu_id="sub_aud_more"),
+]
+
+# Slices when dragging a single PDF
+PDF_SLICES = [
+    RadialSlice("pdf_to_images", "Extraer PNG", "🖼️", "Convertir páginas a imágenes PNG", "#00E5FF"),
+    RadialSlice("pdf_compress", "Comprimir PDF", "🗜️", "Reducir tamaño del documento", "#FF9100"),
+    RadialSlice("", "Dividir PDF ▸", "✂️", "Separar por páginas", "#FF3D00", sub_menu_id="sub_pdf_split"),
+    RadialSlice("", "Más Opciones ▸", "✨", "Exportar a JPG y opciones", "#3D5AFE", sub_menu_id="sub_pdf_more"),
+]
+
+# Slices when dragging multiple PDFs
+PDF_MULTI_SLICES = [
+    RadialSlice("pdf_merge", "Combinar en 1", "📑", "Fusionar todos en un solo PDF", "#00E676", badge="Directo"),
+    RadialSlice("pdf_compress", "Comprimir Lote", "🗜️", "Comprimir todos los PDFs", "#FF9100"),
+    RadialSlice("pdf_to_images", "Extraer PNGs", "🖼️", "Exportar páginas de todos", "#00E5FF"),
+    RadialSlice("", "Más Opciones ▸", "✨", "Opciones adicionales", "#3D5AFE", sub_menu_id="sub_pdf_more"),
+]
+
+# Generic fallback
+GENERIC_SLICES = [
+    RadialSlice("compress", "Comprimir", "🗜️", "Comprimir archivo", "#FF9100"),
+]
+
+def get_slices_for_category(category: str) -> list[RadialSlice]:
+    mapping = {
+        "image": IMAGE_SLICES,
+        "image_multi": IMAGE_MULTI_SLICES,
+        "video": VIDEO_SLICES,
+        "audio": AUDIO_SLICES,
+        "pdf": PDF_SLICES,
+        "pdf_multi": PDF_MULTI_SLICES,
+    }
+    return mapping.get(category, GENERIC_SLICES)
