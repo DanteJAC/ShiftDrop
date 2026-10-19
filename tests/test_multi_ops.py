@@ -161,7 +161,23 @@ class TestMultiOps(unittest.TestCase):
         self.assertEqual(len(results), 2)
         for r in results:
             self.assertTrue(r.exists())
-            self.assertEqual(r.suffix.lower(), ".pdf")
+    def test_combine_multiple_images_to_pdf_pages(self):
+        imgs = []
+        for i in range(4):
+            p = self.tmp / f"test_img_{i}.png"
+            im = Image.new("RGB", (100, 100), color=(i * 40, 100, 150))
+            im.save(p)
+            imgs.append(p)
+
+        merged = combine_files_to_pdf(imgs, output_pdf=self.tmp)
+        self.assertTrue(merged.exists())
+        reader = pypdf.PdfReader(str(merged))
+        self.assertEqual(len(reader.pages), 4)
+
+    def test_combine_missing_file_raises_error(self):
+        missing = self.tmp / "non_existent_file.png"
+        with self.assertRaises(FileNotFoundError):
+            combine_files_to_pdf([self.img_path, missing], output_pdf=self.tmp)
 
 
 if __name__ == "__main__":

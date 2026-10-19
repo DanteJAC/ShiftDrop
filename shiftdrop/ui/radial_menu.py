@@ -215,8 +215,11 @@ class RadialMenuOverlay(QWidget):
         if event.mimeData().hasUrls():
             urls = [u.toLocalFile() for u in event.mimeData().urls() if u.isLocalFile()]
             if urls:
-                self.set_files(urls)
-                event.acceptProposedAction()
+                if len(urls) >= len(self.dragged_files) or not self.dragged_files:
+                    self.set_files(urls)
+                # CRITICAL: Always enforce CopyAction so Windows Explorer NEVER moves/deletes original files!
+                event.setDropAction(Qt.DropAction.CopyAction)
+                event.accept()
                 return
         event.ignore()
 
@@ -229,7 +232,8 @@ class RadialMenuOverlay(QWidget):
             self.active_index = new_index
             self.is_center_hovered = center_hover
             self.update()
-        event.acceptProposedAction()
+        event.setDropAction(Qt.DropAction.CopyAction)
+        event.accept()
 
     def dragLeaveEvent(self, event):
         self.active_index = None
@@ -238,9 +242,13 @@ class RadialMenuOverlay(QWidget):
 
     def dropEvent(self, event):
         pos = event.position()
+        # CRITICAL: Always enforce CopyAction so Windows Explorer NEVER deletes original files!
+        event.setDropAction(Qt.DropAction.CopyAction)
+        event.accept()
+
         if event.mimeData().hasUrls():
             urls = [u.toLocalFile() for u in event.mimeData().urls() if u.isLocalFile()]
-            if urls:
+            if urls and (len(urls) >= len(self.dragged_files) or not self.dragged_files):
                 self.dragged_files = urls
                 self.current_category = detect_file_category([Path(f) for f in urls])
                 if not self.menu_history:
@@ -254,17 +262,14 @@ class RadialMenuOverlay(QWidget):
             else:
                 self.hide()
                 self.dismissed.emit()
-            event.acceptProposedAction()
             return
 
         if target_index is not None and 0 <= target_index < len(self.slices):
             self._select_slice(target_index)
-            event.acceptProposedAction()
         else:
             # Releasing mouse between slices keeps menu active so user can click!
             self.state = "ready"
             self.update()
-            event.acceptProposedAction()
 
     # --- MOUSE EVENTS ---
     def mouseMoveEvent(self, event):

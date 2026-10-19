@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 import pypdf
-from PIL import Image
+from PIL import Image, ImageOps
 
 from shiftdrop.core.path_utils import get_unique_target_path
 from shiftdrop.core.image_ops import convert_image
@@ -47,7 +47,7 @@ def combine_files_to_pdf(
 
         for idx, p in enumerate(paths):
             if not p.exists():
-                continue
+                raise FileNotFoundError(f"El archivo original no existe o no se pudo acceder: {p.name}")
 
             ext = p.suffix.lower()
             
@@ -58,14 +58,15 @@ def combine_files_to_pdf(
                     for page in reader.pages:
                         writer.add_page(page)
                     continue
-                except Exception:
-                    pass
+                except Exception as e:
+                    raise RuntimeError(f"Error al leer el PDF '{p.name}': {e}")
 
             # 2. Image formats (.png, .jpg, .jpeg, .webp, .bmp, .tiff, etc.)
             image_extensions = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".ico", ".gif"}
             if ext in image_extensions:
                 try:
                     with Image.open(p) as img:
+                        img = ImageOps.exif_transpose(img)
                         rgb = img.convert("RGB")
                         temp_pdf_page = tmp_path / f"img_{idx}.pdf"
                         rgb.save(temp_pdf_page, format="PDF", resolution=100.0)
@@ -73,8 +74,8 @@ def combine_files_to_pdf(
                         for page in reader.pages:
                             writer.add_page(page)
                     continue
-                except Exception:
-                    pass
+                except Exception as e:
+                    raise RuntimeError(f"Error al procesar la imagen '{p.name}': {e}")
 
             # 3. Spreadsheets (.xlsx, .xls, .csv, .tsv)
             spreadsheet_extensions = {".xlsx", ".xls", ".xlsm", ".csv", ".tsv", ".ods"}
@@ -147,7 +148,7 @@ def combine_files_to_docx(
 
         for idx, p in enumerate(paths):
             if not p.exists():
-                continue
+                raise FileNotFoundError(f"El archivo original no existe o no se pudo acceder: {p.name}")
 
             ext = p.suffix.lower()
 
@@ -158,12 +159,13 @@ def combine_files_to_docx(
             if ext in {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}:
                 try:
                     with Image.open(p) as img:
+                        img = ImageOps.exif_transpose(img)
                         # Convert to PNG for reliable Word embedding
                         tmp_img = tmp_path / f"img_{idx}.png"
                         img.convert("RGB").save(tmp_img, "PNG")
                         master_doc.add_picture(str(tmp_img), width=Inches(5.5))
-                except Exception:
-                    master_doc.add_paragraph(f"(No se pudo incrustar la imagen {p.name})")
+                except Exception as e:
+                    master_doc.add_paragraph(f"(Error al incrustar la imagen {p.name}: {e})")
 
             # PDF: extract text and paragraphs
             elif ext == ".pdf":
