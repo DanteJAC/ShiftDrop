@@ -3,6 +3,7 @@ FFmpeg Helper: Resolves and validates the local FFmpeg executable.
 Prioritizes bundled imageio-ffmpeg binary, then system PATH.
 """
 from pathlib import Path
+import sys
 import shutil
 import subprocess
 
@@ -13,6 +14,19 @@ def get_ffmpeg_executable() -> str:
     global _cached_ffmpeg_path
     if _cached_ffmpeg_path:
         return _cached_ffmpeg_path
+
+    # 0. Check PyInstaller frozen bundle location
+    if getattr(sys, "frozen", False):
+        base_dir = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+        candidates = [
+            base_dir / "ffmpeg.exe",
+            base_dir / "imageio_ffmpeg" / "binaries" / "ffmpeg-win-x86_64-v7.1.exe",
+            Path(sys.executable).parent / "ffmpeg.exe",
+        ]
+        for c in candidates:
+            if c.is_file():
+                _cached_ffmpeg_path = str(c)
+                return _cached_ffmpeg_path
 
     # 1. Try imageio_ffmpeg bundled binary
     try:
