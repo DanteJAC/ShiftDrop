@@ -25,6 +25,11 @@ from shiftdrop.core.excel_ops import (
 from shiftdrop.core.transcribe_ops import (
     transcribe_to_txt, transcribe_to_srt, transcribe_to_docx
 )
+from shiftdrop.core.multi_ops import (
+    combine_files_to_pdf, combine_files_to_docx,
+    batch_convert_to_pdf, batch_convert_to_docx,
+    batch_convert_to_images, batch_extract_text
+)
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".ico", ".tiff", ".gif", ".svg", ".heic"}
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".wmv", ".m4v", ".ts"}
@@ -179,6 +184,7 @@ def detect_file_category(paths: list[Path | str]) -> str:
             return "audio_multi"
         if all(c == "video" for c in categories):
             return "video_multi"
+        return "mixed_multi"
 
     return categories[0]
 
@@ -415,6 +421,20 @@ def execute_action(
             else:
                 pdf_temp = doc_to_pdf(p, output_dir=output_dir)
                 results.extend(pdf_to_images(pdf_temp, output_format=params.get("format", "png"), output_dir=output_dir))
+
+    # --- MULTI-FILE COMBINE & BATCH ACTIONS ---
+    elif action_id == "multi_merge_pdf":
+        results.append(combine_files_to_pdf(paths, output_pdf=output_dir))
+    elif action_id == "multi_merge_docx":
+        results.append(combine_files_to_docx(paths, output_docx=output_dir))
+    elif action_id == "multi_to_pdf":
+        results.extend(batch_convert_to_pdf(paths, output_dir=output_dir))
+    elif action_id == "multi_to_docx":
+        results.extend(batch_convert_to_docx(paths, output_dir=output_dir))
+    elif action_id == "multi_to_images":
+        results.extend(batch_convert_to_images(paths, output_format=params.get("format", "png"), output_dir=output_dir))
+    elif action_id == "multi_to_txt":
+        results.extend(batch_extract_text(paths, output_dir=output_dir))
 
     # --- COMPRESS ACTION ---
     elif action_id == "compress":

@@ -141,12 +141,13 @@ IMAGE_SLICES = [
 
 # Slices when dragging multiple Images
 IMAGE_MULTI_SLICES = [
-    RadialSlice("img_to_pdf", "Combinar PDF", "📑", "Unir todas en un solo documento PDF", "#D500F9", badge="Multi"),
+    RadialSlice("multi_merge_pdf", "Unir en 1 PDF", "📑", "Fusionar todas en un solo documento PDF", "#00E676", badge="Unir PDF"),
+    RadialSlice("multi_merge_docx", "Unir en 1 Word", "📝", "Incrustar todas en un documento Word", "#7C4DFF", badge="Unir Word"),
     RadialSlice("img_to_webp", "Todas WebP", "⚡", "Convertir lote completo a WebP", "#00E5FF"),
     RadialSlice("img_to_png", "Todas PNG", "🖼️", "Convertir lote completo a PNG", "#00E676"),
     RadialSlice("img_to_jpg", "Todas JPG", "📸", "Convertir lote completo a JPG", "#FFD600"),
-    RadialSlice("", "Comprimir Lote ▸", "🗜️", "Reducir peso de todas", "#FF9100", sub_menu_id="sub_img_compress"),
-    RadialSlice("", "Más Opciones ▸", "✨", "Formatos adicionales para lote", "#3D5AFE", sub_menu_id="sub_img_more"),
+    RadialSlice("compress", "Comprimir ZIP", "🗜️", "Empaquetar todas en un archivo ZIP", "#FF9100", badge="ZIP"),
+    RadialSlice("", "Más Opciones ▸", "✨", "Opciones de compresión y formatos", "#3D5AFE", sub_menu_id="sub_img_more"),
 ]
 
 # Slices when dragging a Video
@@ -185,10 +186,13 @@ PDF_SLICES = [
 
 # Slices when dragging multiple PDFs
 PDF_MULTI_SLICES = [
-    RadialSlice("pdf_merge", "Combinar en 1", "📑", "Fusionar todos en un solo PDF", "#00E676", badge="Directo"),
+    RadialSlice("pdf_merge", "Unir en 1 PDF", "📑", "Fusionar todos en un solo PDF", "#00E676", badge="Unir"),
+    RadialSlice("multi_to_docx", "Todos a Word", "📑", "Convertir cada PDF a Word .docx editable", "#2B579A", badge="Lote Word"),
+    RadialSlice("multi_merge_docx", "Unir en 1 Word", "📝", "Extraer y consolidar textos en 1 Word", "#7C4DFF", badge="Unir Word"),
     RadialSlice("pdf_compress", "Comprimir Lote", "🗜️", "Comprimir todos los PDFs", "#FF9100"),
-    RadialSlice("pdf_to_images", "Extraer PNGs", "🖼️", "Exportar páginas de todos", "#00E5FF"),
-    RadialSlice("", "Más Opciones ▸", "✨", "Opciones adicionales", "#3D5AFE", sub_menu_id="sub_pdf_more"),
+    RadialSlice("pdf_to_images", "Extraer PNGs", "🖼️", "Exportar páginas de todos a PNG", "#00E5FF"),
+    RadialSlice("multi_to_txt", "Extraer Textos", "📋", "Extraer texto de todos los PDFs a .txt", "#FFD600"),
+    RadialSlice("compress", "Comprimir ZIP", "🗜️", "Empaquetar todos en un archivo ZIP", "#FF9100", badge="ZIP"),
 ]
 
 # Slices when dragging a Spreadsheet (.xlsx, .xls, .csv, .tsv, .ods)
@@ -204,6 +208,8 @@ SPREADSHEET_SLICES = [
 
 # Slices when dragging multiple Spreadsheets
 SPREADSHEET_MULTI_SLICES = [
+    RadialSlice("multi_merge_pdf", "Unir en 1 PDF", "📑", "Fusionar todas las tablas en un solo PDF", "#00E676", badge="Unir PDF"),
+    RadialSlice("multi_merge_docx", "Unir en 1 Word", "📝", "Consolidar todas las tablas en 1 Word", "#7C4DFF", badge="Unir Word"),
     RadialSlice("excel_to_pdf", "Todos a PDF", "📄", "Convertir tablas a PDF en lote", "#107C41", badge="Lote"),
     RadialSlice("excel_to_docx", "Todos a Word", "📑", "Convertir cada una a tabla Word", "#2B579A", badge="Word"),
     RadialSlice("excel_to_csv", "Todos a CSV", "📊", "Exportar todas como archivos CSV", "#00E5FF"),
@@ -222,11 +228,24 @@ DOCUMENT_SLICES = [
 
 # Slices when dragging multiple Documents
 DOC_MULTI_SLICES = [
+    RadialSlice("multi_merge_pdf", "Unir en 1 PDF", "📑", "Fusionar todos en 1 solo PDF", "#00E676", badge="Unir PDF"),
+    RadialSlice("multi_merge_docx", "Unir en 1 Word", "📝", "Consolidar en 1 solo documento Word", "#7C4DFF", badge="Unir Word"),
     RadialSlice("doc_to_pdf", "Todos a PDF", "📄", "Convertir cada documento a PDF en lote", "#D500F9", badge="Lote"),
     RadialSlice("doc_to_docx", "Todos a Word", "📑", "Convertir cada documento a Word .docx", "#2B579A", badge="Word"),
     RadialSlice("doc_to_txt", "Extraer Textos", "📝", "Extraer textos a archivos .txt", "#00E5FF"),
-    RadialSlice("compress", "Comprimir Lote", "🗜️", "Empaquetar todos en un ZIP comprimido", "#FF9100", badge="ZIP"),
     RadialSlice("doc_to_images", "A Imágenes", "🖼️", "Convertir todos a imágenes PNG", "#00E676"),
+    RadialSlice("compress", "Comprimir Lote", "🗜️", "Empaquetar todos en un ZIP comprimido", "#FF9100", badge="ZIP"),
+]
+
+# Slices when dragging multiple files of mixed types (e.g. Images + Documents + Spreadsheets + PDFs)
+MIXED_MULTI_SLICES = [
+    RadialSlice("multi_merge_pdf", "Unir en 1 PDF", "📑", "Fusionar todos los archivos en 1 solo PDF", "#00E676", badge="Unir"),
+    RadialSlice("multi_to_pdf", "Todos a PDF", "📄", "Convertir cada archivo a PDF individual", "#D500F9", badge="Lote PDF"),
+    RadialSlice("multi_to_docx", "Todos a Word", "📑", "Convertir cada archivo a Word .docx editable", "#2B579A", badge="Lote Word"),
+    RadialSlice("multi_merge_docx", "Unir en 1 Word", "📝", "Consolidar textos e imágenes en 1 Word", "#7C4DFF", badge="Unir Word"),
+    RadialSlice("multi_to_images", "A Imágenes PNG", "🖼️", "Renderizar páginas y fotos a PNG HD", "#00E5FF", badge="PNG"),
+    RadialSlice("compress", "Comprimir ZIP", "🗜️", "Empaquetar todos en un archivo ZIP", "#FF9100", badge="ZIP"),
+    RadialSlice("multi_to_txt", "Extraer Textos", "📋", "Extraer texto de todos los archivos", "#FFD600", badge="TXT"),
 ]
 
 # Generic fallback when no specific category is pre-detected: provides direct access to all categories
@@ -263,5 +282,6 @@ def get_slices_for_category(category: str) -> list[RadialSlice]:
         "pdf_multi": PDF_MULTI_SLICES,
         "document": DOCUMENT_SLICES,
         "doc_multi": DOC_MULTI_SLICES,
+        "mixed_multi": MIXED_MULTI_SLICES,
     }
     return mapping.get(category, GENERIC_SLICES)

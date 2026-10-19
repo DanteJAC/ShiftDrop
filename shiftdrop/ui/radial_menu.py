@@ -104,6 +104,7 @@ class RadialMenuOverlay(QWidget):
             "pdf_multi": "Lote PDFs",
             "document": "Documento",
             "doc_multi": "Lote Documentos",
+            "mixed_multi": "Lote Multiformato",
             "generic": "ShiftDrop",
         }
         self.current_title = category_titles.get(self.current_category, "Principal")
@@ -508,24 +509,37 @@ class RadialMenuOverlay(QWidget):
         else:
             # Idle Center info
             file_count = len(self.dragged_files)
-            if file_count > 0:
+            if file_count > 1:
+                painter.setFont(QFont("Segoe UI Emoji", 18))
+                cat_icons = {
+                    "spreadsheet_multi": "📊",
+                    "image_multi": "🖼️",
+                    "video_multi": "🎬",
+                    "audio_multi": "🎵",
+                    "pdf_multi": "📑",
+                    "doc_multi": "📝",
+                    "mixed_multi": "📚",
+                }
+                icon = cat_icons.get(self.current_category, "📚")
+                painter.drawText(QRectF(cx - 40, cy - 36, 80, 28), Qt.AlignmentFlag.AlignCenter, icon)
+                painter.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+                painter.setPen(QPen(QColor(0, 230, 118)))
+                painter.drawText(QRectF(cx - 55, cy - 6, 110, 20), Qt.AlignmentFlag.AlignCenter, f"{file_count} Archivos")
+                painter.setFont(QFont("Segoe UI", 7))
+                painter.setPen(QPen(QColor(170, 205, 245)))
+                painter.drawText(QRectF(cx - 55, cy + 12, 110, 20), Qt.AlignmentFlag.AlignCenter, self.current_title)
+            elif file_count == 1:
                 first_name = Path(self.dragged_files[0]).name
                 if len(first_name) > 15:
                     first_name = first_name[:12] + "..."
                 painter.setFont(QFont("Segoe UI Emoji", 16))
                 cat_icons = {
                     "spreadsheet": "📊",
-                    "spreadsheet_multi": "📊",
                     "image": "🖼️",
-                    "image_multi": "🖼️",
                     "video": "🎬",
-                    "video_multi": "🎬",
                     "audio": "🎵",
-                    "audio_multi": "🎵",
                     "pdf": "📑",
-                    "pdf_multi": "📚",
                     "document": "📄",
-                    "doc_multi": "📑",
                     "generic": "📦",
                 }
                 painter.drawText(QRectF(cx - 40, cy - 36, 80, 28), Qt.AlignmentFlag.AlignCenter, cat_icons.get(self.current_category, "📦"))
