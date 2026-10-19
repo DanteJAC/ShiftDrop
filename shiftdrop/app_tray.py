@@ -119,6 +119,12 @@ class ShiftDropApp(QObject):
 
         self.tray_icon.setContextMenu(menu)
         self.tray_icon.show()
+        self.tray_icon.showMessage(
+            "ShiftDrop Activo ⚡",
+            "Arrastra cualquier archivo con la tecla Shift para convertirlo.",
+            QSystemTrayIcon.MessageIcon.Information,
+            3500
+        )
 
     def _on_drag_started(self, x: int, y: int):
         # 1. Immediately detect which files are selected in Explorer or Desktop

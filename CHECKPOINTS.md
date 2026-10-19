@@ -9,7 +9,8 @@ Este archivo registra el historial de banderas del proyecto para permitir volver
 | **Bandera 3** | `bandera-3` | Sistema Radial Multinivel (Cascading Pie Menu) y guardado en la misma carpeta. | ✅ Completada |
 | **Bandera 4** | `bandera-4` | Reconocimiento infalible de archivos en Windows (COM Shell + NoActivate) y ejecución total de opciones. | ✅ Completada |
 | **Bandera 5** | `bandera-5` | Sistema Autónomo Integral: PDF ⇄ Word bidireccional, soporte total .txt (PDF vectorial ReportLab + Word .docx), multimedia FFmpeg, inspección magic bytes y 73 pruebas superadas. | ✅ Completada |
-| **Bandera 6** | `bandera-6` | Ejecutable Windows independiente (.exe) empaquetado y verificado en `dist/ShiftDrop.exe` con icono nativo y dependencias incluidas. | ✅ Activa |
+| **Bandera 6** | `bandera-6` | Ejecutable Windows independiente (.exe) empaquetado y verificado en `dist/ShiftDrop.exe` con icono nativo y dependencias incluidas. | ✅ Completada |
+| **Bandera 7** | `bandera-7` | Soporte de Hojas de Cálculo (Excel .xlsx, .xls, .csv a PDF, Word, JSON, HTML) + Suite de Audio Avanzada (AIFF, WMA, AC3, AMR, control de velocidad x0.75 a x2.0) + Transcripción Offline (Whisper IA a TXT, SRT, DOCX). 95 pruebas al 100% y ejecutable actualizado. | ✅ Activa |
 
 ---
 

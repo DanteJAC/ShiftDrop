@@ -30,10 +30,13 @@ hiddenimports = [
     'fitz',
     'PIL',
     'pypdf',
+    'openpyxl',
+    'faster_whisper',
+    'ctranslate2',
 ]
 
 # Collect all dynamic libraries and data packages
-for pkg in ['imageio_ffmpeg', 'pypdfium2', 'pdf2docx', 'pymupdf', 'reportlab']:
+for pkg in ['imageio_ffmpeg', 'pypdfium2', 'pdf2docx', 'pymupdf', 'reportlab', 'openpyxl', 'faster_whisper', 'ctranslate2']:
     try:
         d, b, h = collect_all(pkg)
         datas.extend(d)

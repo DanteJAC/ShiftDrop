@@ -92,10 +92,14 @@ class RadialMenuOverlay(QWidget):
         self.slices = get_slices_for_category(self.current_category)
         self.menu_history.clear()
         category_titles = {
+            "spreadsheet": "Excel / Tabla",
+            "spreadsheet_multi": "Lote Hojas",
             "image": "Imagen",
             "image_multi": "Lote Imágenes",
             "video": "Video",
+            "video_multi": "Lote Videos",
             "audio": "Audio",
+            "audio_multi": "Lote Audios",
             "pdf": "PDF",
             "pdf_multi": "Lote PDFs",
             "document": "Documento",
@@ -510,10 +514,14 @@ class RadialMenuOverlay(QWidget):
                     first_name = first_name[:12] + "..."
                 painter.setFont(QFont("Segoe UI Emoji", 16))
                 cat_icons = {
+                    "spreadsheet": "📊",
+                    "spreadsheet_multi": "📊",
                     "image": "🖼️",
                     "image_multi": "🖼️",
                     "video": "🎬",
+                    "video_multi": "🎬",
                     "audio": "🎵",
+                    "audio_multi": "🎵",
                     "pdf": "📑",
                     "pdf_multi": "📚",
                     "document": "📄",

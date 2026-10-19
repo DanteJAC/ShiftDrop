@@ -1,5 +1,6 @@
 """
 Central Action Dispatcher: Connects UI actions to specific core operations.
+Includes image, video, audio, PDF, document, spreadsheet, and Speech-to-Text transcription operations.
 """
 from pathlib import Path
 from typing import Any, Optional
@@ -10,7 +11,7 @@ from shiftdrop.core.video_ops import (
     convert_video, video_to_gif, extract_audio_from_video, compress_video, trim_video
 )
 from shiftdrop.core.audio_ops import (
-    convert_audio, normalize_audio, trim_audio
+    convert_audio, normalize_audio, trim_audio, change_audio_speed
 )
 from shiftdrop.core.pdf_ops import (
     merge_pdfs, pdf_to_images, compress_pdf, split_pdf
@@ -18,23 +19,32 @@ from shiftdrop.core.pdf_ops import (
 from shiftdrop.core.doc_ops import (
     doc_to_pdf, pdf_to_docx, doc_to_docx, doc_to_txt
 )
+from shiftdrop.core.excel_ops import (
+    excel_to_pdf, excel_to_docx, excel_to_csv, excel_to_json, excel_to_html, csv_to_excel
+)
+from shiftdrop.core.transcribe_ops import (
+    transcribe_to_txt, transcribe_to_srt, transcribe_to_docx
+)
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".ico", ".tiff", ".gif", ".svg", ".heic"}
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".wmv", ".m4v", ".ts"}
-AUDIO_EXTENSIONS = {".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".opus", ".wma"}
+AUDIO_EXTENSIONS = {".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".opus", ".wma", ".aiff", ".aif", ".ac3", ".amr"}
 PDF_EXTENSIONS = {".pdf"}
-DOC_EXTENSIONS = {".docx", ".doc", ".txt", ".rtf", ".odt", ".md", ".csv", ".xlsx", ".xls", ".pptx", ".ppt"}
+SPREADSHEET_EXTENSIONS = {".xlsx", ".xls", ".xlsm", ".csv", ".tsv", ".ods", ".xltx"}
+DOC_EXTENSIONS = {".docx", ".doc", ".txt", ".rtf", ".odt", ".md", ".pptx", ".ppt"}
+
 
 def inspect_file_type(path: Path | str) -> str:
     """
     Detects the true category of a file by inspecting magic bytes first,
     falling back to file extension.
-    Returns: 'image', 'video', 'audio', 'pdf', 'document', or 'generic'.
+    Returns: 'image', 'video', 'audio', 'pdf', 'spreadsheet', 'document', or 'generic'.
     """
     p = Path(path)
     ext = p.suffix.lower()
 
     if not p.exists() or p.stat().st_size == 0:
+        if ext in SPREADSHEET_EXTENSIONS: return "spreadsheet"
         if ext in IMAGE_EXTENSIONS: return "image"
         if ext in VIDEO_EXTENSIONS: return "video"
         if ext in AUDIO_EXTENSIONS: return "audio"
@@ -55,14 +65,18 @@ def inspect_file_type(path: Path | str) -> str:
 
     # 2. ZIP container: Office Open XML (.docx, .xlsx, .pptx, etc.)
     if header.startswith(b"PK\x03\x04") or header.startswith(b"PK\x05\x06"):
-        if ext in (".docx", ".pptx", ".xlsx", ".odt", ".ods", ".odp", ".docm", ".dotx"):
+        if ext in (".xlsx", ".xlsm", ".ods", ".xltx"):
+            return "spreadsheet"
+        if ext in (".docx", ".pptx", ".odt", ".odp", ".docm", ".dotx"):
             return "document"
         import zipfile
         try:
             if zipfile.is_zipfile(p):
                 with zipfile.ZipFile(p, "r") as zf:
                     names = zf.namelist()
-                    if any(n.startswith(("word/", "xl/", "ppt/")) for n in names):
+                    if any(n.startswith("xl/") for n in names):
+                        return "spreadsheet"
+                    if any(n.startswith(("word/", "ppt/")) for n in names):
                         return "document"
         except Exception:
             pass
@@ -70,6 +84,8 @@ def inspect_file_type(path: Path | str) -> str:
 
     # 3. Old Office OLE2 compound document (.doc, .xls, .ppt)
     if header.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"):
+        if ext in (".xls", ".xlt"):
+            return "spreadsheet"
         return "document"
 
     # 4. Images
@@ -110,6 +126,9 @@ def inspect_file_type(path: Path | str) -> str:
     if header.startswith(b"fLaC"):
         return "audio"
 
+    if header.startswith(b"FORM") and len(header) >= 12 and header[8:12] == b"AIFF":
+        return "audio"
+
     if header.startswith(b"OggS"):
         if ext in (".ogg", ".opus", ".oga"):
             return "audio"
@@ -118,8 +137,10 @@ def inspect_file_type(path: Path | str) -> str:
     if header.startswith(b"ID3") or (len(header) >= 2 and header[0] == 0xFF and (header[1] & 0xE0) == 0xE0):
         return "audio"
 
-    # Extension fallback
-    if ext in IMAGE_EXTENSIONS:
+    # 6. Fallback by extension
+    if ext in SPREADSHEET_EXTENSIONS:
+        return "spreadsheet"
+    elif ext in IMAGE_EXTENSIONS:
         return "image"
     elif ext in VIDEO_EXTENSIONS:
         return "video"
@@ -136,7 +157,8 @@ def inspect_file_type(path: Path | str) -> str:
 def detect_file_category(paths: list[Path | str]) -> str:
     """
     Returns contextual category for radial menu:
-    'image', 'image_multi', 'video', 'audio', 'pdf', 'pdf_multi', 'document', 'doc_multi' or 'generic'.
+    'spreadsheet', 'spreadsheet_multi', 'image', 'image_multi', 'video', 'video_multi',
+    'audio', 'audio_multi', 'pdf', 'pdf_multi', 'document', 'doc_multi' or 'generic'.
     Inspects both real binary magic bytes and file extensions.
     """
     if not paths:
@@ -145,12 +167,18 @@ def detect_file_category(paths: list[Path | str]) -> str:
     categories = [inspect_file_type(p) for p in paths]
 
     if len(paths) > 1:
+        if all(c == "spreadsheet" for c in categories):
+            return "spreadsheet_multi"
         if all(c == "pdf" for c in categories):
             return "pdf_multi"
         if all(c == "image" for c in categories):
             return "image_multi"
         if all(c == "document" for c in categories):
             return "doc_multi"
+        if all(c == "audio" for c in categories):
+            return "audio_multi"
+        if all(c == "video" for c in categories):
+            return "video_multi"
 
     return categories[0]
 
@@ -199,6 +227,15 @@ def execute_action(
                 target_size=params.get("target_size"),
                 output_dir=output_dir
             ))
+    elif action_id == "img_to_bmp":
+        for p in paths:
+            results.append(convert_image(p, "bmp", output_dir=output_dir))
+    elif action_id == "img_to_tiff":
+        for p in paths:
+            results.append(convert_image(p, "tiff", output_dir=output_dir))
+    elif action_id == "img_to_gif":
+        for p in paths:
+            results.append(convert_image(p, "gif", output_dir=output_dir))
 
     # --- VIDEO ACTIONS ---
     elif action_id == "vid_to_mp4":
@@ -235,48 +272,6 @@ def execute_action(
                 end_sec=params.get("end_sec"),
                 output_dir=output_dir
             ))
-
-    # --- AUDIO ACTIONS ---
-    elif action_id == "aud_to_mp3":
-        for p in paths:
-            results.append(convert_audio(p, "mp3", bitrate=params.get("bitrate", "320k"), output_dir=output_dir))
-    elif action_id == "aud_to_wav":
-        for p in paths:
-            results.append(convert_audio(p, "wav", output_dir=output_dir))
-    elif action_id == "aud_to_flac":
-        for p in paths:
-            results.append(convert_audio(p, "flac", output_dir=output_dir))
-    elif action_id == "aud_to_m4a" or action_id == "aud_to_aac":
-        for p in paths:
-            results.append(convert_audio(p, "m4a", output_dir=output_dir))
-    elif action_id == "aud_to_ogg":
-        for p in paths:
-            results.append(convert_audio(p, "ogg", output_dir=output_dir))
-    elif action_id == "aud_to_opus":
-        for p in paths:
-            results.append(convert_audio(p, "opus", output_dir=output_dir))
-    elif action_id == "aud_normalize":
-        for p in paths:
-            results.append(normalize_audio(p, output_dir=output_dir))
-    elif action_id == "aud_trim":
-        for p in paths:
-            results.append(trim_audio(
-                p,
-                start_sec=params.get("start_sec", 0.0),
-                duration_sec=params.get("duration_sec"),
-                output_dir=output_dir
-            ))
-
-    # --- EXTRA IMAGE / VIDEO FORMATS ---
-    elif action_id == "img_to_bmp":
-        for p in paths:
-            results.append(convert_image(p, "bmp", output_dir=output_dir))
-    elif action_id == "img_to_tiff":
-        for p in paths:
-            results.append(convert_image(p, "tiff", output_dir=output_dir))
-    elif action_id == "img_to_gif":
-        for p in paths:
-            results.append(convert_image(p, "gif", output_dir=output_dir))
     elif action_id == "vid_to_mkv":
         for p in paths:
             results.append(convert_video(p, "mkv", output_dir=output_dir))
@@ -294,6 +289,67 @@ def execute_action(
             run_ffmpeg(["-i", str(p), "-c:v", "copy", "-an", str(target_path)])
             results.append(target_path)
 
+    # --- AUDIO ACTIONS ---
+    elif action_id == "aud_to_mp3":
+        for p in paths:
+            results.append(convert_audio(p, "mp3", bitrate=params.get("bitrate", "320k"), output_dir=output_dir))
+    elif action_id == "aud_to_wav":
+        for p in paths:
+            results.append(convert_audio(p, "wav", output_dir=output_dir))
+    elif action_id == "aud_to_flac":
+        for p in paths:
+            results.append(convert_audio(p, "flac", output_dir=output_dir))
+    elif action_id in ("aud_to_m4a", "aud_to_aac"):
+        for p in paths:
+            results.append(convert_audio(p, "m4a", output_dir=output_dir))
+    elif action_id == "aud_to_ogg":
+        for p in paths:
+            results.append(convert_audio(p, "ogg", output_dir=output_dir))
+    elif action_id == "aud_to_opus":
+        for p in paths:
+            results.append(convert_audio(p, "opus", output_dir=output_dir))
+    elif action_id == "aud_to_aiff":
+        for p in paths:
+            results.append(convert_audio(p, "aiff", output_dir=output_dir))
+    elif action_id == "aud_to_wma":
+        for p in paths:
+            results.append(convert_audio(p, "wma", output_dir=output_dir))
+    elif action_id == "aud_to_ac3":
+        for p in paths:
+            results.append(convert_audio(p, "ac3", output_dir=output_dir))
+    elif action_id == "aud_to_amr":
+        for p in paths:
+            results.append(convert_audio(p, "amr", output_dir=output_dir))
+    elif action_id == "aud_normalize":
+        for p in paths:
+            results.append(normalize_audio(p, output_dir=output_dir))
+    elif action_id == "aud_trim":
+        for p in paths:
+            results.append(trim_audio(
+                p,
+                start_sec=params.get("start_sec", 0.0),
+                duration_sec=params.get("duration_sec"),
+                output_dir=output_dir
+            ))
+    elif action_id == "aud_speed":
+        for p in paths:
+            results.append(change_audio_speed(p, speed=params.get("speed", 1.25), output_dir=output_dir))
+
+    # --- SPEECH-TO-TEXT TRANSCRIPTION ACTIONS ---
+    elif action_id in ("aud_transcribe_txt", "vid_transcribe_txt"):
+        for p in paths:
+            results.append(transcribe_to_txt(
+                p,
+                output_dir=output_dir,
+                include_timestamps=params.get("timestamps", True)
+            ))
+    elif action_id in ("aud_transcribe_srt", "vid_transcribe_srt"):
+        for p in paths:
+            results.append(transcribe_to_srt(p, output_dir=output_dir))
+    elif action_id in ("aud_transcribe_docx", "vid_transcribe_docx"):
+        for p in paths:
+            results.append(transcribe_to_docx(p, output_dir=output_dir))
+
     # --- PDF ACTIONS ---
     elif action_id == "pdf_merge":
         results.append(merge_pdfs(paths, output_path=output_dir))
@@ -307,12 +363,66 @@ def execute_action(
         for p in paths:
             results.extend(split_pdf(p, pages_per_split=params.get("pages", 1), output_dir=output_dir))
 
+    # --- SPREADSHEET / EXCEL ACTIONS ---
+    elif action_id == "excel_to_pdf":
+        for p in paths:
+            results.append(excel_to_pdf(p, output_dir=output_dir))
+    elif action_id == "excel_to_docx":
+        for p in paths:
+            results.append(excel_to_docx(p, output_dir=output_dir))
+    elif action_id == "excel_to_csv":
+        for p in paths:
+            results.append(excel_to_csv(p, output_dir=output_dir))
+    elif action_id == "excel_to_json":
+        for p in paths:
+            results.append(excel_to_json(p, output_dir=output_dir))
+    elif action_id == "excel_to_html":
+        for p in paths:
+            results.append(excel_to_html(p, output_dir=output_dir))
+    elif action_id == "csv_to_excel":
+        for p in paths:
+            results.append(csv_to_excel(p, output_dir=output_dir))
+
+    # --- DOCUMENT ACTIONS ---
+    elif action_id == "doc_to_pdf":
+        for p in paths:
+            if p.suffix.lower() in SPREADSHEET_EXTENSIONS:
+                results.append(excel_to_pdf(p, output_dir=output_dir))
+            else:
+                results.append(doc_to_pdf(p, output_dir=output_dir))
+    elif action_id == "doc_to_txt":
+        for p in paths:
+            if p.suffix.lower() in SPREADSHEET_EXTENSIONS:
+                results.append(excel_to_csv(p, output_dir=output_dir))
+            else:
+                results.append(doc_to_txt(p, output_dir=output_dir))
+    elif action_id in ("pdf_to_docx", "doc_to_docx"):
+        for p in paths:
+            ext = p.suffix.lower()
+            if ext == ".pdf" or inspect_file_type(p) == "pdf":
+                results.append(pdf_to_docx(p, output_dir=output_dir))
+            elif ext in SPREADSHEET_EXTENSIONS:
+                results.append(excel_to_docx(p, output_dir=output_dir))
+            else:
+                results.append(doc_to_docx(p, output_dir=output_dir))
+    elif action_id == "doc_to_images":
+        for p in paths:
+            if p.suffix.lower() == ".pdf":
+                results.extend(pdf_to_images(p, output_format=params.get("format", "png"), output_dir=output_dir))
+            elif p.suffix.lower() in SPREADSHEET_EXTENSIONS:
+                pdf_temp = excel_to_pdf(p, output_dir=output_dir)
+                results.extend(pdf_to_images(pdf_temp, output_format=params.get("format", "png"), output_dir=output_dir))
+            else:
+                pdf_temp = doc_to_pdf(p, output_dir=output_dir)
+                results.extend(pdf_to_images(pdf_temp, output_format=params.get("format", "png"), output_dir=output_dir))
+
+    # --- COMPRESS ACTION ---
     elif action_id == "compress":
         cat = detect_file_category(paths)
         if cat in ("image", "image_multi"):
             for p in paths:
                 results.append(compress_image(p, quality=params.get("quality", 65), output_dir=output_dir))
-        elif cat == "video":
+        elif cat in ("video", "video_multi"):
             for p in paths:
                 results.append(compress_video(p, crf=params.get("crf", 28), output_dir=output_dir))
         elif cat in ("pdf", "pdf_multi"):
@@ -327,27 +437,6 @@ def execute_action(
                 for p in paths:
                     zf.write(p, p.name)
             results.append(target_zip)
-
-    # --- DOCUMENT ACTIONS ---
-    elif action_id == "doc_to_pdf":
-        for p in paths:
-            results.append(doc_to_pdf(p, output_dir=output_dir))
-    elif action_id == "doc_to_txt":
-        for p in paths:
-            results.append(doc_to_txt(p, output_dir=output_dir))
-    elif action_id == "pdf_to_docx" or action_id == "doc_to_docx":
-        for p in paths:
-            if p.suffix.lower() == ".pdf" or inspect_file_type(p) == "pdf":
-                results.append(pdf_to_docx(p, output_dir=output_dir))
-            else:
-                results.append(doc_to_docx(p, output_dir=output_dir))
-    elif action_id == "doc_to_images":
-        for p in paths:
-            if p.suffix.lower() == ".pdf":
-                results.extend(pdf_to_images(p, output_format=params.get("format", "png"), output_dir=output_dir))
-            else:
-                pdf_temp = doc_to_pdf(p, output_dir=output_dir)
-                results.extend(pdf_to_images(pdf_temp, output_format=params.get("format", "png"), output_dir=output_dir))
 
     else:
         raise ValueError(f"Acción no reconocida: {action_id}")
