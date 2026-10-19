@@ -4,6 +4,19 @@ Main Entry Point.
 """
 import sys
 import signal
+
+# Ensure UTF-8 output on Windows consoles to prevent cp1252 UnicodeEncodeError
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 from shiftdrop.app_tray import ShiftDropApp
@@ -23,16 +36,19 @@ def main():
 
     shift_drop = ShiftDropApp(app)
 
-    print("=" * 60)
-    print("⚡ ShiftDrop está activo en segundo plano!")
-    print("=" * 60)
-    print("👉 Cómo usarlo:")
-    print("   1. En el Explorador o Escritorio de Windows, arrastra cualquier archivo.")
-    print("   2. Mantén pulsada la tecla Shift mientras arrastras.")
-    print("   3. ¡Aparecerá la rueda circular bajo tu cursor con todas las opciones!")
-    print("   4. Suelta el archivo sobre la opción deseada para convertirlo.")
-    print("   5. También puedes hacer clic derecho en el icono de la bandeja del sistema.")
-    print("=" * 60)
+    try:
+        print("=" * 60)
+        print("⚡ ShiftDrop está activo en segundo plano!")
+        print("=" * 60)
+        print("👉 Cómo usarlo:")
+        print("   1. En el Explorador o Escritorio de Windows, arrastra cualquier archivo.")
+        print("   2. Mantén pulsada la tecla Shift mientras arrastras.")
+        print("   3. ¡Aparecerá la rueda circular bajo tu cursor con todas las opciones!")
+        print("   4. Suelta el archivo sobre la opción deseada para convertirlo.")
+        print("   5. También puedes hacer clic derecho en el icono de la bandeja del sistema.")
+        print("=" * 60)
+    except Exception:
+        pass
 
     sys.exit(app.exec())
 
