@@ -1,10 +1,12 @@
 """
 Audio Operations: 100% offline conversions and edits using FFmpeg.
 Supports MP3, WAV, FLAC, M4A/AAC, OGG, Opus, AIFF, WMA, AC3, AMR, normalization, trimming, and speed adjustment.
+Non-destructive: never overwrites existing files.
 """
 from pathlib import Path
 from typing import Optional
 from shiftdrop.core.ffmpeg_helper import run_ffmpeg
+from shiftdrop.core.path_utils import get_unique_target_path
 
 def convert_audio(
     input_path: Path | str,
@@ -18,10 +20,12 @@ def convert_audio(
     input_path = Path(input_path)
     output_format = output_format.lower().lstrip(".")
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}.{output_format}"
+    base_target = out_dir / f"{input_path.stem}.{output_format}"
 
-    if target_path.resolve() == input_path.resolve():
-        target_path = out_dir / f"{input_path.stem}_converted.{output_format}"
+    if base_target.resolve() == input_path.resolve():
+        base_target = out_dir / f"{input_path.stem}_converted.{output_format}"
+
+    target_path = get_unique_target_path(base_target)
 
     args = ["-i", str(input_path)]
 
@@ -62,7 +66,7 @@ def normalize_audio(
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}_normalized{input_path.suffix}"
+    target_path = get_unique_target_path(out_dir / f"{input_path.stem}_normalized{input_path.suffix}")
 
     args = [
         "-i", str(input_path),
@@ -84,7 +88,7 @@ def trim_audio(
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}_trimmed{input_path.suffix}"
+    target_path = get_unique_target_path(out_dir / f"{input_path.stem}_trimmed{input_path.suffix}")
 
     args = ["-ss", str(start_sec), "-i", str(input_path)]
     if duration_sec:
@@ -107,7 +111,7 @@ def change_audio_speed(
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
     speed_tag = f"x{str(speed).replace('.', '_')}"
-    target_path = out_dir / f"{input_path.stem}_{speed_tag}{input_path.suffix}"
+    target_path = get_unique_target_path(out_dir / f"{input_path.stem}_{speed_tag}{input_path.suffix}")
 
     # Build atempo filter chain if outside 0.5-2.0
     filters = []

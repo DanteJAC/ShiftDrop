@@ -129,8 +129,12 @@ class ShiftDropApp(QObject):
     def _on_drag_started(self, x: int, y: int):
         # 1. Immediately detect which files are selected in Explorer or Desktop
         files = get_selected_files_in_explorer()
+        # Only open radial menu if files are actively being dragged from Explorer or Desktop!
+        # Prevents any interference with AutoCAD, Revit, Excel, Photoshop or other application gestures.
+        if not files:
+            return
         # 2. Show the radial menu pre-loaded with those files!
-        self.radial_menu.show_at(x, y, initial_files=files if files else None)
+        self.radial_menu.show_at(x, y, initial_files=files)
 
     def _on_drag_cancelled(self):
         if self.radial_menu.isVisible():

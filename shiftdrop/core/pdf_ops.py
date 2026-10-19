@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 import pypdf
 import pypdfium2 as pdfium
+from shiftdrop.core.path_utils import get_unique_target_path
 
 def _validate_pdf_file(p: Path) -> None:
     if not p.exists():
@@ -35,7 +36,8 @@ def merge_pdfs(
         _validate_pdf_file(Path(p))
 
     first_pdf = Path(pdf_paths[0])
-    target = Path(output_path) if output_path else first_pdf.parent / f"{first_pdf.stem}_merged.pdf"
+    base_target = Path(output_path) if output_path else first_pdf.parent / f"{first_pdf.stem}_merged.pdf"
+    target = get_unique_target_path(base_target)
 
     writer = pypdf.PdfWriter()
     for p in pdf_paths:
@@ -89,7 +91,8 @@ def compress_pdf(
     input_path = Path(input_path)
     _validate_pdf_file(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target = out_dir / f"{input_path.stem}_min.pdf"
+    base_target = out_dir / f"{input_path.stem}_min.pdf"
+    target = get_unique_target_path(base_target)
 
     reader = pypdf.PdfReader(str(input_path))
     writer = pypdf.PdfWriter()

@@ -3,6 +3,7 @@ FFmpeg Helper: Resolves and validates the local FFmpeg executable.
 Prioritizes bundled imageio-ffmpeg binary, then system PATH.
 """
 from pathlib import Path
+from typing import Optional
 import sys
 import shutil
 import subprocess
@@ -15,18 +16,32 @@ def get_ffmpeg_executable() -> str:
     if _cached_ffmpeg_path:
         return _cached_ffmpeg_path
 
-    # 0. Check PyInstaller frozen bundle location
+    # 0. Check PyInstaller frozen bundle location (handles both onefile and onedir)
     if getattr(sys, "frozen", False):
         base_dir = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
         candidates = [
             base_dir / "ffmpeg.exe",
+            base_dir / "_internal" / "ffmpeg.exe",
             base_dir / "imageio_ffmpeg" / "binaries" / "ffmpeg-win-x86_64-v7.1.exe",
+            base_dir / "_internal" / "imageio_ffmpeg" / "binaries" / "ffmpeg-win-x86_64-v7.1.exe",
             Path(sys.executable).parent / "ffmpeg.exe",
+            Path(sys.executable).parent / "_internal" / "ffmpeg.exe",
         ]
         for c in candidates:
             if c.is_file():
                 _cached_ffmpeg_path = str(c)
                 return _cached_ffmpeg_path
+
+        # Check wildcard in imageio_ffmpeg/binaries directories
+        for d in [
+            base_dir / "imageio_ffmpeg" / "binaries",
+            base_dir / "_internal" / "imageio_ffmpeg" / "binaries",
+            Path(sys.executable).parent / "_internal" / "imageio_ffmpeg" / "binaries"
+        ]:
+            if d.is_dir():
+                for f in d.glob("ffmpeg*.exe"):
+                    _cached_ffmpeg_path = str(f)
+                    return _cached_ffmpeg_path
 
     # 1. Try imageio_ffmpeg bundled binary
     try:
@@ -60,7 +75,7 @@ def get_ffmpeg_executable() -> str:
         "No se encontró FFmpeg. Asegúrate de tener imageio-ffmpeg instalado en el entorno."
     )
 
-def run_ffmpeg(args: list[str], timeout: int = 300) -> subprocess.CompletedProcess:
+def run_ffmpeg(args: list[str], timeout: Optional[int] = None) -> subprocess.CompletedProcess:
     """Executes FFmpeg with the given arguments."""
     exe = get_ffmpeg_executable()
     cmd = [exe, "-hide_banner", "-loglevel", "error", "-y"] + args

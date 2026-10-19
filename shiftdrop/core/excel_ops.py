@@ -10,6 +10,7 @@ from typing import Optional, Any
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from shiftdrop.core.path_utils import get_unique_target_path
 
 
 def _detect_encoding_and_delimiter(file_path: Path) -> tuple[str, str]:
@@ -203,10 +204,10 @@ def excel_to_pdf(
     """
     input_path = Path(input_path).resolve()
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_pdf = out_dir / f"{input_path.stem}.pdf"
-
-    if target_pdf.resolve() == input_path.resolve():
-        target_pdf = out_dir / f"{input_path.stem}_converted.pdf"
+    base_target = out_dir / f"{input_path.stem}.pdf"
+    if base_target.resolve() == input_path.resolve():
+        base_target = out_dir / f"{input_path.stem}_converted.pdf"
+    target_pdf = get_unique_target_path(base_target)
 
     # 1. Try Excel COM if running on Windows and input is .xlsx or .xls
     if input_path.suffix.lower() in (".xlsx", ".xls", ".xlsm"):
@@ -219,6 +220,7 @@ def excel_to_pdf(
             excel = win32com.client.DispatchEx("Excel.Application")
             excel.Visible = False
             excel.DisplayAlerts = False
+            excel.AutomationSecurity = 3  # 3 = msoAutomationSecurityForceDisable
             wb = excel.Workbooks.Open(str(input_path), ReadOnly=True)
             # 0 corresponds to xlTypePDF
             wb.ExportAsFixedFormat(0, str(target_pdf))
@@ -257,7 +259,7 @@ def excel_to_docx(
 
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_docx = out_dir / f"{input_path.stem}.docx"
+    target_docx = get_unique_target_path(out_dir / f"{input_path.stem}.docx")
 
     title, rows = read_spreadsheet_data(input_path)
 
@@ -318,7 +320,7 @@ def excel_to_csv(
     """Converts an Excel (.xlsx) file to standard UTF-8-SIG CSV."""
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_csv = out_dir / f"{input_path.stem}.csv"
+    target_csv = get_unique_target_path(out_dir / f"{input_path.stem}.csv")
 
     title, rows = read_spreadsheet_data(input_path)
 
@@ -339,7 +341,7 @@ def excel_to_json(
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_json = out_dir / f"{input_path.stem}.json"
+    target_json = get_unique_target_path(out_dir / f"{input_path.stem}.json")
 
     title, rows = read_spreadsheet_data(input_path)
 
@@ -373,7 +375,7 @@ def excel_to_html(
     import html
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_html = out_dir / f"{input_path.stem}.html"
+    target_html = get_unique_target_path(out_dir / f"{input_path.stem}.html")
 
     title, rows = read_spreadsheet_data(input_path)
 
@@ -437,7 +439,7 @@ def csv_to_excel(
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_xlsx = out_dir / f"{input_path.stem}.xlsx"
+    target_xlsx = get_unique_target_path(out_dir / f"{input_path.stem}.xlsx")
 
     title, rows = read_spreadsheet_data(input_path)
 

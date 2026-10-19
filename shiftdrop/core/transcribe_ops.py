@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Any
 import numpy as np
+from shiftdrop.core.path_utils import get_unique_target_path
 
 _cached_model = None
 
@@ -125,7 +126,7 @@ def transcribe_to_txt(
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_txt = out_dir / f"{input_path.stem}_transcripcion.txt"
+    target_txt = get_unique_target_path(out_dir / f"{input_path.stem}_transcripcion.txt")
 
     lang, duration, segments = transcribe_audio_segments(input_path)
 
@@ -159,7 +160,7 @@ def transcribe_to_srt(
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_srt = out_dir / f"{input_path.stem}_subtitulos.srt"
+    target_srt = get_unique_target_path(out_dir / f"{input_path.stem}_subtitulos.srt")
 
     lang, duration, segments = transcribe_audio_segments(input_path)
 
@@ -189,7 +190,7 @@ def transcribe_to_docx(
 
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_docx = out_dir / f"{input_path.stem}_transcripcion.docx"
+    target_docx = get_unique_target_path(out_dir / f"{input_path.stem}_transcripcion.docx")
 
     lang, duration, segments = transcribe_audio_segments(input_path)
 

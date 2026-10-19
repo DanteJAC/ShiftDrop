@@ -1,9 +1,12 @@
 """
 Video Operations: 100% offline conversions and edits using FFmpeg.
+Non-destructive: never overwrites existing files.
+Properly handles WebM (VP9/Opus), MP4 (H.264/AAC), MKV, MOV, and AVI containers.
 """
 from pathlib import Path
 from typing import Optional
 from shiftdrop.core.ffmpeg_helper import run_ffmpeg
+from shiftdrop.core.path_utils import get_unique_target_path
 
 def convert_video(
     input_path: Path | str,
@@ -13,14 +16,17 @@ def convert_video(
 ) -> Path:
     """
     Converts video to target format (e.g., 'mp4', 'webm', 'mkv', 'mov', 'avi').
+    Guarantees no destructive overwrites via get_unique_target_path.
     """
     input_path = Path(input_path)
     output_format = output_format.lower().lstrip(".")
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}.{output_format}"
+    base_target = out_dir / f"{input_path.stem}.{output_format}"
 
-    if target_path.resolve() == input_path.resolve():
-        target_path = out_dir / f"{input_path.stem}_converted.{output_format}"
+    if base_target.resolve() == input_path.resolve():
+        base_target = out_dir / f"{input_path.stem}_converted.{output_format}"
+
+    target_path = get_unique_target_path(base_target)
 
     args = ["-i", str(input_path)]
 
@@ -31,6 +37,10 @@ def convert_video(
         args.extend(["-c:v", "libvpx-vp9", "-crf", "30", "-b:v", "0", "-c:a", "libopus"])
     elif output_format == "mov":
         args.extend(["-c:v", "prores_ks", "-profile:v", "3", "-c:a", "pcm_s16le"])
+    elif output_format == "mkv":
+        args.extend(["-c:v", "libx264", "-c:a", "aac"])
+    elif output_format == "avi":
+        args.extend(["-c:v", "libx264", "-c:a", "mp3"])
     else:
         args.extend(["-c:v", "libx264", "-c:a", "aac"])
 
@@ -52,7 +62,8 @@ def video_to_gif(
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}.gif"
+    base_target = out_dir / f"{input_path.stem}.gif"
+    target_path = get_unique_target_path(base_target)
 
     # Filter string: scale and generate dynamic color palette
     vf = f"fps={fps},scale={scale_width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer"
@@ -80,7 +91,8 @@ def extract_audio_from_video(
     input_path = Path(input_path)
     audio_format = audio_format.lower().lstrip(".")
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}.{audio_format}"
+    base_target = out_dir / f"{input_path.stem}.{audio_format}"
+    target_path = get_unique_target_path(base_target)
 
     args = ["-i", str(input_path), "-vn"]
 
@@ -92,6 +104,10 @@ def extract_audio_from_video(
         args.extend(["-c:a", "flac"])
     elif audio_format in ("m4a", "aac"):
         args.extend(["-c:a", "aac", "-b:a", bitrate])
+    elif audio_format == "ogg":
+        args.extend(["-c:a", "libvorbis", "-q:a", "6"])
+    elif audio_format == "opus":
+        args.extend(["-c:a", "libopus", "-b:a", "128k"])
     else:
         args.extend(["-c:a", "copy"])
 
@@ -111,12 +127,12 @@ def compress_video(
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}_min.mp4"
+    base_target = out_dir / f"{input_path.stem}_min.mp4"
+    target_path = get_unique_target_path(base_target)
 
     args = ["-i", str(input_path), "-c:v", "libx264", "-crf", str(crf), "-preset", "medium"]
 
     if max_height:
-        # Scale filter: preserve aspect ratio, ensure even height/width for h264
         args.extend(["-vf", f"scale='min(iw, -2)':'min(ih, {max_height})':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2"])
 
     args.extend(["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(target_path)])
@@ -133,10 +149,13 @@ def trim_video(
 ) -> Path:
     """
     Trims/cuts video to specified duration.
+    Uses appropriate codecs matching the target container (e.g. VP9/Opus for WebM, H.264/AAC for MP4).
     """
     input_path = Path(input_path)
+    ext = input_path.suffix.lower()
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}_trimmed{input_path.suffix}"
+    base_target = out_dir / f"{input_path.stem}_trimmed{input_path.suffix}"
+    target_path = get_unique_target_path(base_target)
 
     args = ["-ss", str(start_sec), "-i", str(input_path)]
     if duration_sec:
@@ -144,7 +163,17 @@ def trim_video(
     elif end_sec:
         args.extend(["-to", str(end_sec - start_sec)])
 
-    # Stream copy if possible for instant lossless cut, or re-encode for keyframe accuracy
-    args.extend(["-c:v", "libx264", "-c:a", "aac", "-movflags", "+faststart", str(target_path)])
+    # Select codec based on container format to guarantee compatibility
+    if ext == ".webm":
+        args.extend(["-c:v", "libvpx-vp9", "-crf", "30", "-b:v", "0", "-c:a", "libopus", str(target_path)])
+    elif ext in (".mp4", ".m4v", ".mov"):
+        args.extend(["-c:v", "libx264", "-c:a", "aac", "-movflags", "+faststart", str(target_path)])
+    elif ext == ".mkv":
+        args.extend(["-c:v", "libx264", "-c:a", "aac", str(target_path)])
+    elif ext == ".avi":
+        args.extend(["-c:v", "libx264", "-c:a", "mp3", str(target_path)])
+    else:
+        args.extend(["-c", "copy", str(target_path)])
+
     run_ffmpeg(args)
     return target_path

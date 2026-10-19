@@ -1,9 +1,11 @@
 """
 Image Operations: 100% offline conversions and edits using Pillow.
+Non-destructive: never overwrites existing files.
 """
 from pathlib import Path
 from typing import Optional
 from PIL import Image, ImageOps
+from shiftdrop.core.path_utils import get_unique_target_path
 
 def convert_image(
     input_path: Path | str,
@@ -14,6 +16,7 @@ def convert_image(
     """
     Converts an image to target format (e.g., 'webp', 'png', 'jpeg', 'ico', 'pdf', 'bmp', 'tiff').
     Saves in output_dir (or same directory if None).
+    Guarantees no destructive overwrites.
     """
     input_path = Path(input_path)
     output_format = output_format.lower().lstrip(".")
@@ -27,11 +30,13 @@ def convert_image(
         out_dir = input_path.parent
 
     target_ext = f".{output_format}" if output_format != "jpeg" else ".jpg"
-    target_path = out_dir / f"{input_path.stem}{target_ext}"
+    base_target = out_dir / f"{input_path.stem}{target_ext}"
     
     # Avoid overwriting original if source has same ext
-    if target_path.resolve() == input_path.resolve():
-        target_path = out_dir / f"{input_path.stem}_converted{target_ext}"
+    if base_target.resolve() == input_path.resolve():
+        base_target = out_dir / f"{input_path.stem}_converted{target_ext}"
+
+    target_path = get_unique_target_path(base_target)
 
     with Image.open(input_path) as img:
         # Handle transparency & color modes
@@ -81,7 +86,8 @@ def compress_image(
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
     ext = input_path.suffix.lower()
-    target_path = out_dir / f"{input_path.stem}_min{ext}"
+    base_target = out_dir / f"{input_path.stem}_min{ext}"
+    target_path = get_unique_target_path(base_target)
 
     with Image.open(input_path) as img:
         # Resize if max dimension is specified
@@ -120,7 +126,8 @@ def crop_or_resize_image(
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}_edited{input_path.suffix}"
+    base_target = out_dir / f"{input_path.stem}_edited{input_path.suffix}"
+    target_path = get_unique_target_path(base_target)
 
     with Image.open(input_path) as img:
         w, h = img.size
@@ -158,7 +165,8 @@ def images_to_pdf(image_paths: list[Path | str], output_pdf: Optional[Path | str
         raise ValueError("No images provided to convert to PDF.")
 
     first_path = Path(image_paths[0])
-    target_path = Path(output_pdf) if output_pdf else first_path.parent / f"{first_path.stem}_combined.pdf"
+    base_target = Path(output_pdf) if output_pdf else first_path.parent / f"{first_path.stem}_combined.pdf"
+    target_path = get_unique_target_path(base_target)
 
     pil_images = []
     for p in image_paths:

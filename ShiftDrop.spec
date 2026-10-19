@@ -36,6 +36,7 @@ hiddenimports = [
 ]
 
 # Collect all dynamic libraries and data packages
+# Note: imageio_ffmpeg provides the ffmpeg binary once; avoiding duplicate root bundling.
 for pkg in ['imageio_ffmpeg', 'pypdfium2', 'pdf2docx', 'pymupdf', 'reportlab', 'openpyxl', 'faster_whisper', 'ctranslate2']:
     try:
         d, b, h = collect_all(pkg)
@@ -44,15 +45,6 @@ for pkg in ['imageio_ffmpeg', 'pypdfium2', 'pdf2docx', 'pymupdf', 'reportlab', '
         hiddenimports.extend(h)
     except Exception as e:
         print(f"Warning collecting {pkg}: {e}")
-
-# Explicitly ensure bundled FFmpeg is also available at root
-try:
-    import imageio_ffmpeg
-    ffmpeg_src = imageio_ffmpeg.get_ffmpeg_exe()
-    if ffmpeg_src and Path(ffmpeg_src).is_file():
-        binaries.append((ffmpeg_src, '.'))
-except Exception:
-    pass
 
 a = Analysis(
     ['shiftdrop/main.py'],
@@ -72,21 +64,17 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-# Single-file standalone executable
+# Standalone directory distribution (onedir): Instant startup, no %TEMP% unpacking, zero duplication
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='ShiftDrop',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -94,4 +82,15 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon='assets/icon.ico',
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='ShiftDrop',
 )

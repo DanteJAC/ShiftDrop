@@ -10,6 +10,7 @@ import pypdf
 import pythoncom
 import win32com.client
 from PIL import Image, ImageDraw
+from shiftdrop.core.path_utils import get_unique_target_path
 
 def _read_text_robust(path: Path | str) -> str:
     """
@@ -130,10 +131,10 @@ def doc_to_pdf(input_path: Path | str, output_dir: Optional[Path | str] = None) 
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}.pdf"
-
-    if target_path.resolve() == input_path.resolve():
-        target_path = out_dir / f"{input_path.stem}_converted.pdf"
+    base_target = out_dir / f"{input_path.stem}.pdf"
+    if base_target.resolve() == input_path.resolve():
+        base_target = out_dir / f"{input_path.stem}_converted.pdf"
+    target_path = get_unique_target_path(base_target)
 
     ext = input_path.suffix.lower()
 
@@ -143,20 +144,29 @@ def doc_to_pdf(input_path: Path | str, output_dir: Optional[Path | str] = None) 
         return _render_text_to_pdf(text, target_path, title=input_path.stem)
 
     # 2. Native MS Word COM for .docx, .doc, .odt
+    # Uses DispatchEx for process isolation and AutomationSecurity=3 (ForceDisable macros)
     word_success = False
     word = None
+    wdoc = None
     try:
         pythoncom.CoInitialize()
-        word = win32com.client.Dispatch("Word.Application")
+        word = win32com.client.DispatchEx("Word.Application")
         word.Visible = False
         word.DisplayAlerts = 0
+        word.AutomationSecurity = 3  # 3 = msoAutomationSecurityForceDisable
         wdoc = word.Documents.Open(str(input_path.resolve()), ReadOnly=True, ConfirmConversions=False)
         wdoc.SaveAs(str(target_path.resolve()), FileFormat=17)  # 17 = wdFormatPDF
         wdoc.Close(SaveChanges=0)
+        wdoc = None
         word_success = target_path.exists() and target_path.stat().st_size > 0
     except Exception:
         word_success = False
     finally:
+        if wdoc:
+            try:
+                wdoc.Close(SaveChanges=0)
+            except Exception:
+                pass
         if word:
             try:
                 word.Quit()
@@ -195,10 +205,10 @@ def doc_to_docx(input_path: Path | str, output_dir: Optional[Path | str] = None)
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}.docx"
-
-    if target_path.resolve() == input_path.resolve():
-        target_path = out_dir / f"{input_path.stem}_converted.docx"
+    base_target = out_dir / f"{input_path.stem}.docx"
+    if base_target.resolve() == input_path.resolve():
+        base_target = out_dir / f"{input_path.stem}_converted.docx"
+    target_path = get_unique_target_path(base_target)
 
     ext = input_path.suffix.lower()
 
@@ -231,9 +241,10 @@ def pdf_to_docx(input_path: Path | str, output_dir: Optional[Path | str] = None)
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}.docx"
-    if target_path.resolve() == input_path.resolve():
-        target_path = out_dir / f"{input_path.stem}_converted.docx"
+    base_target = out_dir / f"{input_path.stem}.docx"
+    if base_target.resolve() == input_path.resolve():
+        base_target = out_dir / f"{input_path.stem}_converted.docx"
+    target_path = get_unique_target_path(base_target)
 
     # 1. Try high-fidelity pdf2docx
     try:
@@ -280,9 +291,10 @@ def doc_to_txt(input_path: Path | str, output_dir: Optional[Path | str] = None) 
     """
     input_path = Path(input_path)
     out_dir = Path(output_dir) if output_dir else input_path.parent
-    target_path = out_dir / f"{input_path.stem}.txt"
-    if target_path.resolve() == input_path.resolve():
-        target_path = out_dir / f"{input_path.stem}_converted.txt"
+    base_target = out_dir / f"{input_path.stem}.txt"
+    if base_target.resolve() == input_path.resolve():
+        base_target = out_dir / f"{input_path.stem}_converted.txt"
+    target_path = get_unique_target_path(base_target)
 
     ext = input_path.suffix.lower()
     text_content = ""

@@ -79,10 +79,14 @@ class GlobalDragListener(QObject):
                         start_x, start_y = cx, cy
                     else:
                         dist = ((cx - start_x)**2 + (cy - start_y)**2)**0.5
-                        # If dragged past threshold and Shift is down, trigger radial menu!
+                        # If dragged past threshold and Shift is down, verify we are in Explorer/Desktop
                         if dist > self.drag_threshold and shift_down and not menu_opened:
-                            menu_opened = True
-                            self.drag_started.emit(cx, cy)
+                            from shiftdrop.listener.explorer_helper import is_explorer_or_desktop_window
+                            hwnd_cursor = user32.WindowFromPoint(pt)
+                            hwnd_fg = user32.GetForegroundWindow()
+                            if is_explorer_or_desktop_window(hwnd_cursor) or is_explorer_or_desktop_window(hwnd_fg):
+                                menu_opened = True
+                                self.drag_started.emit(cx, cy)
                 else:
                     # Mouse released - Keep menu open and reset drag detection flags
                     menu_opened = False
