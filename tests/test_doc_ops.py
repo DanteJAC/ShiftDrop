@@ -26,12 +26,13 @@ class TestDocOps(unittest.TestCase):
         with open(self.txt_file, "w", encoding="utf-8") as f:
             f.write("Línea 1: Documento de texto.\nLínea 2: Segunda línea de prueba.")
 
-        # Create a valid PDF file
+        # Create a valid PDF file with text content
         self.pdf_file = self.temp_path / "sample.pdf"
-        writer = pypdf.PdfWriter()
-        writer.add_blank_page(width=100, height=100)
-        with open(self.pdf_file, "wb") as f:
-            writer.write(f)
+        from PIL import Image, ImageDraw
+        img = Image.new("RGB", (600, 800), (255, 255, 255))
+        draw = ImageDraw.Draw(img)
+        draw.text((60, 60), "ShiftDrop PDF Sample Document", fill=(0, 0, 0))
+        img.save(self.pdf_file, "PDF")
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -96,6 +97,31 @@ class TestDocOps(unittest.TestCase):
         doc = docx.Document(str(out_docx))
         self.assertTrue(len(doc.paragraphs) > 0)
 
+    def test_magic_bytes_inspection(self):
+        from shiftdrop.core.dispatcher import inspect_file_type
+        self.assertEqual(inspect_file_type(self.pdf_file), "pdf")
+        self.assertEqual(inspect_file_type(self.docx_file), "document")
+
+        # Even if a docx is renamed to .bin, magic bytes must detect it as document
+        renamed_docx = self.temp_path / "mystery.bin"
+        with open(self.docx_file, "rb") as src, open(renamed_docx, "wb") as dst:
+            dst.write(src.read())
+        self.assertEqual(inspect_file_type(renamed_docx), "document")
+
+    def test_bidirectional_conversion_roundtrip(self):
+        # 1. DOCX -> PDF
+        pdf_out = doc_to_pdf(self.docx_file)
+        self.assertTrue(pdf_out.exists())
+        self.assertEqual(pdf_out.suffix, ".pdf")
+        _validate_pdf_file(pdf_out)
+
+        # 2. PDF -> DOCX
+        docx_out = pdf_to_docx(pdf_out)
+        self.assertTrue(docx_out.exists())
+        self.assertEqual(docx_out.suffix, ".docx")
+        doc = docx.Document(str(docx_out))
+        self.assertTrue(len(doc.paragraphs) > 0)
+
     def test_dispatcher_document_actions(self):
         # Dispatcher doc_to_txt
         res = execute_action("doc_to_txt", [self.docx_file])
@@ -103,6 +129,13 @@ class TestDocOps(unittest.TestCase):
         self.assertTrue(res[0].exists())
         self.assertEqual(res[0].suffix, ".txt")
         self.assertEqual(res[0].parent, self.temp_path)
+
+        # Dispatcher pdf_to_docx
+        res_docx = execute_action("pdf_to_docx", [self.pdf_file])
+        self.assertEqual(len(res_docx), 1)
+        self.assertTrue(res_docx[0].exists())
+        self.assertEqual(res_docx[0].suffix, ".docx")
+        self.assertEqual(res_docx[0].parent, self.temp_path)
 
         # Dispatcher compress on documents creates a zip in the same directory
         res_zip = execute_action("compress", [self.docx_file, self.txt_file])

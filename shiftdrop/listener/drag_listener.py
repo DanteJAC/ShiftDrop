@@ -54,35 +54,38 @@ class GlobalDragListener(QObject):
         menu_opened = False
 
         while self._running:
-            time.sleep(0.03)  # ~33Hz check rate: ~0.0% CPU usage
+            try:
+                time.sleep(0.03)  # ~33Hz check rate: ~0.0% CPU usage
 
-            if not self._enabled:
-                continue
+                if not self._enabled:
+                    continue
 
-            lbutton_down = bool(user32.GetAsyncKeyState(VK_LBUTTON) & 0x8000)
-            shift_down = bool(user32.GetAsyncKeyState(VK_SHIFT) & 0x8000)
-            esc_down = bool(user32.GetAsyncKeyState(VK_ESCAPE) & 0x8000)
+                lbutton_down = bool(user32.GetAsyncKeyState(VK_LBUTTON) & 0x8000)
+                shift_down = bool(user32.GetAsyncKeyState(VK_SHIFT) & 0x8000)
+                esc_down = bool(user32.GetAsyncKeyState(VK_ESCAPE) & 0x8000)
 
-            user32.GetCursorPos(ctypes.byref(pt))
-            cx, cy = pt.x, pt.y
+                user32.GetCursorPos(ctypes.byref(pt))
+                cx, cy = pt.x, pt.y
 
-            if esc_down and menu_opened:
-                menu_opened = False
-                is_dragging = False
-                self.drag_cancelled.emit()
-                continue
+                if esc_down and menu_opened:
+                    menu_opened = False
+                    is_dragging = False
+                    self.drag_cancelled.emit()
+                    continue
 
-            if lbutton_down:
-                if not is_dragging:
-                    is_dragging = True
-                    start_x, start_y = cx, cy
+                if lbutton_down:
+                    if not is_dragging:
+                        is_dragging = True
+                        start_x, start_y = cx, cy
+                    else:
+                        dist = ((cx - start_x)**2 + (cy - start_y)**2)**0.5
+                        # If dragged past threshold and Shift is down, trigger radial menu!
+                        if dist > self.drag_threshold and shift_down and not menu_opened:
+                            menu_opened = True
+                            self.drag_started.emit(cx, cy)
                 else:
-                    dist = ((cx - start_x)**2 + (cy - start_y)**2)**0.5
-                    # If dragged past threshold and Shift is down, trigger radial menu!
-                    if dist > self.drag_threshold and shift_down and not menu_opened:
-                        menu_opened = True
-                        self.drag_started.emit(cx, cy)
-            else:
-                # Mouse released - Keep menu open and reset drag detection flags
-                menu_opened = False
-                is_dragging = False
+                    # Mouse released - Keep menu open and reset drag detection flags
+                    menu_opened = False
+                    is_dragging = False
+            except Exception:
+                time.sleep(0.1)

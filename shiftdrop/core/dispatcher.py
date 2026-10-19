@@ -25,34 +25,134 @@ AUDIO_EXTENSIONS = {".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".opus", ".
 PDF_EXTENSIONS = {".pdf"}
 DOC_EXTENSIONS = {".docx", ".doc", ".txt", ".rtf", ".odt", ".md", ".csv", ".xlsx", ".xls", ".pptx", ".ppt"}
 
-def detect_file_category(paths: list[Path | str]) -> str:
+def inspect_file_type(path: Path | str) -> str:
     """
-    Returns 'image', 'video', 'audio', 'pdf', 'document', 'pdf_multi', 'image_multi' or 'generic'.
+    Detects the true category of a file by inspecting magic bytes first,
+    falling back to file extension.
+    Returns: 'image', 'video', 'audio', 'pdf', 'document', or 'generic'.
     """
-    if not paths:
-        return "generic"
-    
-    exts = [Path(p).suffix.lower() for p in paths]
-    if len(paths) > 1 and all(e in PDF_EXTENSIONS for e in exts):
-        return "pdf_multi"
-    if len(paths) > 1 and all(e in IMAGE_EXTENSIONS for e in exts):
-        return "image_multi"
-    if len(paths) > 1 and all(e in DOC_EXTENSIONS for e in exts):
-        return "doc_multi"
+    p = Path(path)
+    ext = p.suffix.lower()
 
-    first_ext = exts[0]
-    if first_ext in IMAGE_EXTENSIONS:
-        return "image"
-    elif first_ext in VIDEO_EXTENSIONS:
-        return "video"
-    elif first_ext in AUDIO_EXTENSIONS:
-        return "audio"
-    elif first_ext in PDF_EXTENSIONS:
+    if not p.exists() or p.stat().st_size == 0:
+        if ext in IMAGE_EXTENSIONS: return "image"
+        if ext in VIDEO_EXTENSIONS: return "video"
+        if ext in AUDIO_EXTENSIONS: return "audio"
+        if ext in PDF_EXTENSIONS: return "pdf"
+        if ext in DOC_EXTENSIONS: return "document"
+        return "generic"
+
+    header = b""
+    try:
+        with open(p, "rb") as f:
+            header = f.read(32)
+    except Exception:
+        pass
+
+    # 1. PDF signature
+    if header.startswith(b"%PDF"):
         return "pdf"
-    elif first_ext in DOC_EXTENSIONS:
+
+    # 2. ZIP container: Office Open XML (.docx, .xlsx, .pptx, etc.)
+    if header.startswith(b"PK\x03\x04") or header.startswith(b"PK\x05\x06"):
+        if ext in (".docx", ".pptx", ".xlsx", ".odt", ".ods", ".odp", ".docm", ".dotx"):
+            return "document"
+        import zipfile
+        try:
+            if zipfile.is_zipfile(p):
+                with zipfile.ZipFile(p, "r") as zf:
+                    names = zf.namelist()
+                    if any(n.startswith(("word/", "xl/", "ppt/")) for n in names):
+                        return "document"
+        except Exception:
+            pass
+        return "generic"
+
+    # 3. Old Office OLE2 compound document (.doc, .xls, .ppt)
+    if header.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"):
+        return "document"
+
+    # 4. Images
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image"
+    if header.startswith(b"\xff\xd8\xff"):
+        return "image"
+    if header.startswith(b"GIF87a") or header.startswith(b"GIF89a"):
+        return "image"
+    if header.startswith(b"RIFF") and len(header) >= 12 and header[8:12] == b"WEBP":
+        return "image"
+    if header.startswith(b"BM"):
+        return "image"
+    if header.startswith(b"II*\x00") or header.startswith(b"MM\x00*"):
+        return "image"
+    if header.startswith(b"\x00\x00\x01\x00") or header.startswith(b"\x00\x00\x02\x00"):
+        return "image"
+
+    # 5. Audio and Video
+    if header.startswith(b"RIFF") and len(header) >= 12:
+        tag = header[8:12]
+        if tag == b"WAVE":
+            return "audio"
+        if tag == b"AVI ":
+            return "video"
+
+    if len(header) >= 8 and header[4:8] == b"ftyp":
+        major_brand = header[8:12] if len(header) >= 12 else b""
+        if major_brand in (b"M4A ", b"M4B ") or ext in AUDIO_EXTENSIONS:
+            return "audio"
+        return "video"
+
+    if header.startswith(b"\x1a\x45\xdf\xa3"):
+        if ext in (".weba", ".mka"):
+            return "audio"
+        return "video"
+
+    if header.startswith(b"fLaC"):
+        return "audio"
+
+    if header.startswith(b"OggS"):
+        if ext in (".ogg", ".opus", ".oga"):
+            return "audio"
+        return "video"
+
+    if header.startswith(b"ID3") or (len(header) >= 2 and header[0] == 0xFF and (header[1] & 0xE0) == 0xE0):
+        return "audio"
+
+    # Extension fallback
+    if ext in IMAGE_EXTENSIONS:
+        return "image"
+    elif ext in VIDEO_EXTENSIONS:
+        return "video"
+    elif ext in AUDIO_EXTENSIONS:
+        return "audio"
+    elif ext in PDF_EXTENSIONS:
+        return "pdf"
+    elif ext in DOC_EXTENSIONS:
         return "document"
     else:
         return "generic"
+
+
+def detect_file_category(paths: list[Path | str]) -> str:
+    """
+    Returns contextual category for radial menu:
+    'image', 'image_multi', 'video', 'audio', 'pdf', 'pdf_multi', 'document', 'doc_multi' or 'generic'.
+    Inspects both real binary magic bytes and file extensions.
+    """
+    if not paths:
+        return "generic"
+
+    categories = [inspect_file_type(p) for p in paths]
+
+    if len(paths) > 1:
+        if all(c == "pdf" for c in categories):
+            return "pdf_multi"
+        if all(c == "image" for c in categories):
+            return "image_multi"
+        if all(c == "document" for c in categories):
+            return "doc_multi"
+
+    return categories[0]
 
 
 def execute_action(
@@ -237,7 +337,7 @@ def execute_action(
             results.append(doc_to_txt(p, output_dir=output_dir))
     elif action_id == "pdf_to_docx" or action_id == "doc_to_docx":
         for p in paths:
-            if p.suffix.lower() == ".pdf":
+            if p.suffix.lower() == ".pdf" or inspect_file_type(p) == "pdf":
                 results.append(pdf_to_docx(p, output_dir=output_dir))
             else:
                 results.append(doc_to_pdf(p, output_dir=output_dir))
