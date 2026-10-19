@@ -20,6 +20,7 @@ from shiftdrop.ui.dialogs.crop_dialog import CropDialog
 from shiftdrop.ui.dialogs.merge_dialog import MergeDialog
 from shiftdrop.ui.dialogs.more_formats import MoreFormatsDialog
 from shiftdrop.core.dispatcher import execute_action, detect_file_category
+from shiftdrop.listener.explorer_helper import get_selected_files_in_explorer
 
 class ConversionSignals(QObject):
     progress = pyqtSignal(str)
@@ -120,7 +121,10 @@ class ShiftDropApp(QObject):
         self.tray_icon.show()
 
     def _on_drag_started(self, x: int, y: int):
-        self.radial_menu.show_at(x, y)
+        # 1. Immediately detect which files are selected in Explorer or Desktop
+        files = get_selected_files_in_explorer()
+        # 2. Show the radial menu pre-loaded with those files!
+        self.radial_menu.show_at(x, y, initial_files=files if files else None)
 
     def _on_drag_cancelled(self):
         if self.radial_menu.isVisible():
@@ -130,8 +134,27 @@ class ShiftDropApp(QObject):
         pass
 
     def _on_action_triggered(self, action_id: str, files: list[str], params: dict):
-        if not files or not action_id:
+        if not action_id:
             return
+
+        # Ensure files are available from radial menu state or Explorer query
+        if not files:
+            files = self.radial_menu.dragged_files.copy()
+        if not files:
+            files = get_selected_files_in_explorer()
+        if not files:
+            # Fallback if no files were found: ask user to select the target file
+            chosen, _ = QFileDialog.getOpenFileNames(
+                None, "Selecciona el archivo para esta acción", "", "Todos los archivos (*.*)"
+            )
+            if chosen:
+                files = chosen
+            else:
+                self.radial_menu.set_conversion_error("No se seleccionó ningún archivo")
+                return
+
+        # Update radial menu with files if it didn't have them
+        self.radial_menu.dragged_files = files
 
         # Start async conversion targeting the exact same folder as the original file
         worker = ConversionWorker(action_id, files, params)

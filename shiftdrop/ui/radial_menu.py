@@ -31,7 +31,8 @@ class RadialMenuOverlay(QWidget):
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.Tool
+            Qt.WindowType.Tool |
+            Qt.WindowType.WindowDoesNotAcceptFocus
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAcceptDrops(True)
@@ -83,7 +84,6 @@ class RadialMenuOverlay(QWidget):
 
         self.show()
         self.raise_()
-        self.activateWindow()
 
     def set_files(self, files: list[str]):
         """Sets the files being processed and populates contextual root slices."""

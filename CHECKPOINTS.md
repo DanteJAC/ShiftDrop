@@ -7,7 +7,7 @@ Este archivo registra el historial de banderas del proyecto para permitir volver
 | **Bandera 1** | `bandera-1` | Estructura base del proyecto, entorno `uv`, dependencias y arquitectura inicial. | ✅ Completada |
 | **Bandera 2** | `bandera-2` | Motores de conversión 100% locales con FFmpeg 7.1, Pillow, PyPDF y PyPDFium2. | ✅ Completada |
 | **Bandera 3** | `bandera-3` | Sistema Radial Multinivel (Cascading Pie Menu) y guardado en la misma carpeta. | ✅ Completada |
-| **Bandera 4** | `bandera-4` | Reconocimiento infalible de archivos en Windows (Fix OLE Drag & Drop / NoActivate) y ejecución de todas las opciones. | 🔄 En progreso |
+| **Bandera 4** | `bandera-4` | Reconocimiento infalible de archivos en Windows (COM Shell + NoActivate) y ejecución total de opciones. | ✅ Completada |
 
 ---
 

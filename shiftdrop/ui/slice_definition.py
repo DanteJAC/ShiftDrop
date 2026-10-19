@@ -151,10 +151,21 @@ PDF_MULTI_SLICES = [
     RadialSlice("", "Más Opciones ▸", "✨", "Opciones adicionales", "#3D5AFE", sub_menu_id="sub_pdf_more"),
 ]
 
-# Generic fallback
+# Generic fallback when no specific category is pre-detected: provides direct access to all categories
 GENERIC_SLICES = [
-    RadialSlice("compress", "Comprimir", "🗜️", "Comprimir archivo", "#FF9100"),
+    RadialSlice("", "Imágenes ▸", "🖼️", "WebP, PNG, JPG, Recortar, Comprimir", "#00E5FF", sub_menu_id="sub_cat_images"),
+    RadialSlice("", "Videos ▸", "🎬", "MP4, GIF, Extraer Audio, Comprimir", "#FF007F", sub_menu_id="sub_cat_videos"),
+    RadialSlice("", "Audios ▸", "🎵", "MP3, WAV, FLAC, Normalizar", "#00E676", sub_menu_id="sub_cat_audios"),
+    RadialSlice("", "Documentos ▸", "📄", "Combinar PDF, Extraer PNG, Comprimir", "#D500F9", sub_menu_id="sub_cat_pdfs"),
+    RadialSlice("compress", "Comprimir", "🗜️", "Comprimir archivos a ZIP / reducido", "#FF9100"),
+    RadialSlice("", "100+ Formatos ▸", "✨", "Explorar catálogo completo de formatos", "#3D5AFE", sub_menu_id="sub_img_more"),
 ]
+
+# Wire category sub-menus into SUB_MENUS
+SUB_MENUS["sub_cat_images"] = IMAGE_SLICES
+SUB_MENUS["sub_cat_videos"] = VIDEO_SLICES
+SUB_MENUS["sub_cat_audios"] = AUDIO_SLICES
+SUB_MENUS["sub_cat_pdfs"] = PDF_SLICES
 
 def get_slices_for_category(category: str) -> list[RadialSlice]:
     mapping = {
@@ -166,3 +177,4 @@ def get_slices_for_category(category: str) -> list[RadialSlice]:
         "pdf_multi": PDF_MULTI_SLICES,
     }
     return mapping.get(category, GENERIC_SLICES)
+

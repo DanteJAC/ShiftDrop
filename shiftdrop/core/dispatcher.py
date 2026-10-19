@@ -199,6 +199,27 @@ def execute_action(
         for p in paths:
             results.extend(split_pdf(p, pages_per_split=params.get("pages", 1), output_dir=output_dir))
 
+    elif action_id == "compress":
+        cat = detect_file_category(paths)
+        if cat in ("image", "image_multi"):
+            for p in paths:
+                results.append(compress_image(p, quality=params.get("quality", 65), output_dir=output_dir))
+        elif cat == "video":
+            for p in paths:
+                results.append(compress_video(p, crf=params.get("crf", 28), output_dir=output_dir))
+        elif cat in ("pdf", "pdf_multi"):
+            for p in paths:
+                results.append(compress_pdf(p, output_dir=output_dir))
+        else:
+            import zipfile
+            first_p = paths[0]
+            out_dir = Path(output_dir) if output_dir else first_p.parent
+            target_zip = out_dir / f"{first_p.stem}_compressed.zip"
+            with zipfile.ZipFile(target_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+                for p in paths:
+                    zf.write(p, p.name)
+            results.append(target_zip)
+
     else:
         raise ValueError(f"Acción no reconocida: {action_id}")
 
