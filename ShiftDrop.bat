@@ -9,16 +9,16 @@ echo   - Aparecera la rueda con opciones contextuales instantaneas.
 echo   - Minimizado en la bandeja del sistema (System Tray).
 echo ============================================================
 
-if exist "dist\ShiftDrop\ShiftDrop.exe" (
+if exist "%~dp0dist\ShiftDrop\ShiftDrop.exe" (
     echo Iniciando ShiftDrop: Modo nativo instantaneo...
-    start "" "dist\ShiftDrop\ShiftDrop.exe"
+    start "" /D "%~dp0dist\ShiftDrop" "%~dp0dist\ShiftDrop\ShiftDrop.exe"
     echo ShiftDrop esta activo en segundo plano y en la bandeja del sistema.
     exit /b 0
 )
 
-if exist "dist\ShiftDrop.exe" (
+if exist "%~dp0dist\ShiftDrop.exe" (
     echo Iniciando ShiftDrop.exe...
-    start "" "dist\ShiftDrop.exe"
+    start "" /D "%~dp0dist" "%~dp0dist\ShiftDrop.exe"
     echo ShiftDrop esta activo en segundo plano y en la bandeja del sistema.
     exit /b 0
 )
