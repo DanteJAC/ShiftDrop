@@ -98,5 +98,39 @@ class TestGifAndProgress(unittest.TestCase):
             if os.path.exists(tmp_in):
                 os.remove(tmp_in)
 
+    def test_custom_gif_trim_slice_present(self):
+        tramos_actions = [s.action_id for s in SUB_MENUS["sub_vid_gif_tramos"]]
+        self.assertIn("custom_gif_trim", tramos_actions)
+
+    def test_radial_menu_custom_gif_trim_workflow(self):
+        radial = RadialMenuOverlay()
+        radial.dragged_files = ["dummy.mp4"]
+        
+        # Enter mode
+        radial._enter_custom_gif_trim_mode()
+        self.assertEqual(radial.state, "custom_gif_trim")
+        self.assertEqual(radial.custom_trim_start, 0.0)
+        self.assertGreater(radial.custom_trim_end, 0.0)
+
+        # Signal capture
+        emitted_calls = []
+        radial.action_triggered.connect(lambda act, files, params: emitted_calls.append((act, files, params)))
+
+        radial.custom_trim_start = 3.5
+        radial.custom_trim_end = 8.5
+        radial._execute_custom_gif()
+
+        self.assertEqual(len(emitted_calls), 1)
+        act, files, params = emitted_calls[0]
+        self.assertEqual(act, "vid_to_gif")
+        self.assertEqual(files, ["dummy.mp4"])
+        self.assertEqual(params["start_sec"], 3.5)
+        self.assertEqual(params["duration_sec"], 5.0)
+
+        # Test navigate back
+        radial.state = "custom_gif_trim"
+        radial._navigate_back()
+        self.assertEqual(radial.state, "ready")
+
 if __name__ == "__main__":
     unittest.main()

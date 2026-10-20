@@ -66,6 +66,13 @@ class RadialMenuOverlay(QWidget):
         self.target_progress: float = 0.0
         self.status_detail: str = ""
 
+        # Custom GIF Trim mode attributes (Circular dual-bar selection)
+        self.custom_trim_total_duration: float = 60.0
+        self.custom_trim_start: float = 0.0
+        self.custom_trim_end: float = 10.0
+        self.dragging_handle: Optional[str] = None
+        self.hovered_trim_btn: Optional[str] = None
+
         # Animation timer for spinner and smooth progress
         self.spinner_angle: float = 0.0
         self.anim_timer = QTimer(self)
@@ -176,7 +183,12 @@ class RadialMenuOverlay(QWidget):
             self.update()
             return
 
-        # 2. Terminal action: Execute conversion immediately and keep menu alive!
+        # 2. Custom circular mode for GIF trimming
+        if target_slice.action_id == "custom_gif_trim":
+            self._enter_custom_gif_trim_mode()
+            return
+
+        # 3. Terminal action: Execute conversion immediately and keep menu alive!
         if target_slice.action_id:
             self.state = "processing"
             self.status_action = target_slice.title
@@ -192,6 +204,17 @@ class RadialMenuOverlay(QWidget):
 
     def _navigate_back(self):
         """Returns to parent radial wheel."""
+        if self.state == "custom_gif_trim":
+            self.state = "ready"
+            self.dragging_handle = None
+            self.hovered_trim_btn = None
+            if self.menu_history:
+                prev_title, prev_slices = self.menu_history.pop()
+                self.slices = prev_slices
+                self.current_title = prev_title
+            self.update()
+            return
+
         if self.menu_history:
             prev_title, prev_slices = self.menu_history.pop()
             self.slices = prev_slices
@@ -203,6 +226,66 @@ class RadialMenuOverlay(QWidget):
         else:
             self.hide()
             self.dismissed.emit()
+
+    def _enter_custom_gif_trim_mode(self):
+        """Switches radial wheel into the interactive circular dual-bar trim mode."""
+        self.menu_history.append((self.current_title, self.slices))
+        self.state = "custom_gif_trim"
+        self.current_title = "Tramo GIF"
+        self.active_index = None
+        self.is_center_hovered = False
+        self.dragging_handle = None
+        self.hovered_trim_btn = None
+
+        # Determine media duration from first dragged video file
+        target_file = self.dragged_files[0] if self.dragged_files else None
+        total_dur = 0.0
+        if target_file and Path(target_file).exists():
+            from shiftdrop.core.ffmpeg_helper import get_media_duration
+            total_dur = get_media_duration(target_file)
+
+        if total_dur <= 0:
+            total_dur = 30.0
+
+        self.custom_trim_total_duration = total_dur
+        self.custom_trim_start = 0.0
+        self.custom_trim_end = min(10.0, total_dur)
+        self.update()
+
+    def _execute_custom_gif(self):
+        """Executes the GIF conversion with the chosen start and end points from the circular bars."""
+        start_sec = self.custom_trim_start
+        dur_sec = max(0.5, self.custom_trim_end - self.custom_trim_start)
+        params = {
+            "start_sec": start_sec,
+            "duration_sec": dur_sec,
+            "fps": 15,
+            "width": 480
+        }
+        self.state = "processing"
+        self.status_action = f"GIF ({dur_sec:.1f}s)"
+        self.current_progress = 0.0
+        self.target_progress = 8.0
+        self.status_detail = f"{self._format_sec_short(start_sec)} ➔ {self._format_sec_short(self.custom_trim_end)}"
+        self.anim_timer.start(30)
+        self.update()
+
+        files = self.dragged_files.copy()
+        self.action_triggered.emit("vid_to_gif", files, params)
+
+    def _angle_from_pos(self, pos: QPointF) -> float:
+        cx = self.width() / 2.0
+        cy = self.height() / 2.0
+        dx = pos.x() - cx
+        dy = pos.y() - cy
+        rad = math.atan2(dy, dx)
+        deg = (math.degrees(rad) + 90.0) % 360.0
+        return deg
+
+    def _format_sec_short(self, sec: float) -> str:
+        m = int(sec // 60)
+        s = sec % 60
+        return f"{m:02d}:{s:04.1f}"
 
     # --- LIVE IN-WHEEL FEEDBACK METHODS ---
     def set_conversion_progress(self, percent: int, msg: str = ""):
@@ -297,6 +380,81 @@ class RadialMenuOverlay(QWidget):
     # --- MOUSE EVENTS ---
     def mouseMoveEvent(self, event):
         pos = event.position()
+        cx = self.width() / 2.0
+        cy = self.height() / 2.0
+        dist = math.hypot(pos.x() - cx, pos.y() - cy)
+
+        if self.state == "custom_gif_trim":
+            if self.dragging_handle:
+                deg = self._angle_from_pos(pos)
+                sec_val = (deg / 360.0) * self.custom_trim_total_duration
+                if self.dragging_handle == "start":
+                    if self.custom_trim_start < self.custom_trim_total_duration * 0.25 and sec_val > self.custom_trim_total_duration * 0.75:
+                        self.custom_trim_start = 0.0
+                    else:
+                        self.custom_trim_start = max(0.0, min(self.custom_trim_end - 0.2, sec_val))
+                elif self.dragging_handle == "end":
+                    if self.custom_trim_end > self.custom_trim_total_duration * 0.75 and sec_val < self.custom_trim_total_duration * 0.25:
+                        self.custom_trim_end = self.custom_trim_total_duration
+                    else:
+                        self.custom_trim_end = min(self.custom_trim_total_duration, max(self.custom_trim_start + 0.2, sec_val))
+                self.update()
+                return
+
+            old_center_hover = self.is_center_hovered
+            self.is_center_hovered = (dist < self.center_radius)
+
+            # Check button hovers
+            rect_create = QRectF(cx - 95, cy + 192, 190, 36)
+            rect_back = QRectF(cx - 215, cy - 225, 75, 26)
+            p_5s = QRectF(cx + 45, cy - 225, 36, 26)
+            p_10s = QRectF(cx + 85, cy - 225, 36, 26)
+            p_15s = QRectF(cx + 125, cy - 225, 36, 26)
+            p_all = QRectF(cx + 165, cy - 225, 45, 26)
+
+            # Handle positions
+            total = max(1.0, self.custom_trim_total_duration)
+            a_start_deg = (self.custom_trim_start / total) * 360.0
+            hx_start = cx + 128.0 * math.cos(math.radians(a_start_deg - 90.0))
+            hy_start = cy + 128.0 * math.sin(math.radians(a_start_deg - 90.0))
+
+            a_end_deg = (self.custom_trim_end / total) * 360.0
+            hx_end = cx + 176.0 * math.cos(math.radians(a_end_deg - 90.0))
+            hy_end = cy + 176.0 * math.sin(math.radians(a_end_deg - 90.0))
+
+            new_hover = None
+            if math.hypot(pos.x() - hx_start, pos.y() - hy_start) <= 18:
+                new_hover = "handle_start"
+            elif math.hypot(pos.x() - hx_end, pos.y() - hy_end) <= 18:
+                new_hover = "handle_end"
+            elif rect_create.contains(pos):
+                new_hover = "create"
+            elif rect_back.contains(pos):
+                new_hover = "back"
+            elif p_5s.contains(pos):
+                new_hover = "p5"
+            elif p_10s.contains(pos):
+                new_hover = "p10"
+            elif p_15s.contains(pos):
+                new_hover = "p15"
+            elif p_all.contains(pos):
+                new_hover = "pall"
+            elif 112 <= dist <= 146:
+                new_hover = "bar_start"
+            elif 158 <= dist <= 205:
+                new_hover = "bar_end"
+
+            if old_center_hover != self.is_center_hovered or self.hovered_trim_btn != new_hover:
+                self.hovered_trim_btn = new_hover
+                if self.hovered_trim_btn or self.is_center_hovered:
+                    self.setCursor(Qt.CursorShape.PointingHandCursor)
+                else:
+                    self.setCursor(Qt.CursorShape.ArrowCursor)
+                self.update()
+            return
+
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+
         new_index, center_hover = self._calculate_hover(pos)
         if self.state == "completed" and new_index is not None:
             self.state = "ready"
@@ -309,7 +467,90 @@ class RadialMenuOverlay(QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             cx = self.width() / 2.0
             cy = self.height() / 2.0
-            dist = math.hypot(event.position().x() - cx, event.position().y() - cy)
+            pos = event.position()
+            dist = math.hypot(pos.x() - cx, pos.y() - cy)
+
+            if self.state == "custom_gif_trim":
+                # Check top-left "Volver" button
+                rect_back = QRectF(cx - 215, cy - 225, 75, 26)
+                if rect_back.contains(pos):
+                    self._navigate_back()
+                    return
+
+                # Check bottom "Crear GIF" button
+                rect_create = QRectF(cx - 95, cy + 192, 190, 36)
+                if rect_create.contains(pos):
+                    self._execute_custom_gif()
+                    return
+
+                # Check preset pills (5s, 10s, 15s, Todo)
+                p_5s = QRectF(cx + 45, cy - 225, 36, 26)
+                p_10s = QRectF(cx + 85, cy - 225, 36, 26)
+                p_15s = QRectF(cx + 125, cy - 225, 36, 26)
+                p_all = QRectF(cx + 165, cy - 225, 45, 26)
+
+                if p_5s.contains(pos):
+                    self.custom_trim_end = min(self.custom_trim_total_duration, self.custom_trim_start + 5.0)
+                    self.update()
+                    return
+                elif p_10s.contains(pos):
+                    self.custom_trim_end = min(self.custom_trim_total_duration, self.custom_trim_start + 10.0)
+                    self.update()
+                    return
+                elif p_15s.contains(pos):
+                    self.custom_trim_end = min(self.custom_trim_total_duration, self.custom_trim_start + 15.0)
+                    self.update()
+                    return
+                elif p_all.contains(pos):
+                    self.custom_trim_start = 0.0
+                    self.custom_trim_end = self.custom_trim_total_duration
+                    self.update()
+                    return
+
+                # Check Center Hub -> Click to execute GIF!
+                if dist < self.center_radius:
+                    self._execute_custom_gif()
+                    return
+
+                # Clicked outside the entire wheel -> Dismiss
+                if dist > self.slice_outer_radius + self.hover_extra + 30:
+                    self.hide()
+                    self.dismissed.emit()
+                    return
+
+                # Check handle hit first
+                total = max(1.0, self.custom_trim_total_duration)
+                a_start_deg = (self.custom_trim_start / total) * 360.0
+                hx_start = cx + 128.0 * math.cos(math.radians(a_start_deg - 90.0))
+                hy_start = cy + 128.0 * math.sin(math.radians(a_start_deg - 90.0))
+
+                a_end_deg = (self.custom_trim_end / total) * 360.0
+                hx_end = cx + 176.0 * math.cos(math.radians(a_end_deg - 90.0))
+                hy_end = cy + 176.0 * math.sin(math.radians(a_end_deg - 90.0))
+
+                if math.hypot(pos.x() - hx_start, pos.y() - hy_start) <= 22:
+                    self.dragging_handle = "start"
+                    return
+                if math.hypot(pos.x() - hx_end, pos.y() - hy_end) <= 22:
+                    self.dragging_handle = "end"
+                    return
+
+                # Handle scrubbing on concentric circular tracks:
+                angle_deg = self._angle_from_pos(pos)
+                sec_val = (angle_deg / 360.0) * self.custom_trim_total_duration
+
+                if 112 <= dist <= 146:
+                    self.dragging_handle = "start"
+                    self.custom_trim_start = max(0.0, min(self.custom_trim_end - 0.2, sec_val))
+                    self.update()
+                    return
+                elif 158 <= dist <= 205:
+                    self.dragging_handle = "end"
+                    self.custom_trim_end = min(self.custom_trim_total_duration, max(self.custom_trim_start + 0.2, sec_val))
+                    self.update()
+                    return
+
+                return
 
             # Clicked outside the radial wheel -> Dismiss cleanly
             if dist > self.slice_outer_radius + self.hover_extra + 15:
@@ -326,7 +567,20 @@ class RadialMenuOverlay(QWidget):
             elif self.active_index is not None:
                 self._select_slice(self.active_index)
 
+    def mouseReleaseEvent(self, event):
+        if self.state == "custom_gif_trim":
+            self.dragging_handle = None
+            self.update()
+
     def keyPressEvent(self, event):
+        if self.state == "custom_gif_trim":
+            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                self._execute_custom_gif()
+                return
+            elif event.key() == Qt.Key.Key_Escape:
+                self._navigate_back()
+                return
+
         if event.key() == Qt.Key.Key_Escape:
             if self.menu_history:
                 self._navigate_back()
@@ -342,6 +596,11 @@ class RadialMenuOverlay(QWidget):
 
         cx = self.width() / 2.0
         cy = self.height() / 2.0
+
+        if self.state == "custom_gif_trim":
+            self._paint_custom_gif_trim(painter, cx, cy)
+            return
+
         num = len(self.slices)
 
         # 1. Background soft halo
@@ -625,3 +884,271 @@ class RadialMenuOverlay(QWidget):
 
         path.closeSubpath()
         return path
+
+    def _paint_custom_gif_trim(self, painter: QPainter, cx: float, cy: float):
+        """
+        Renders the in-wheel dual circular bars for custom GIF trim selection.
+        - Inner bar (R=128): Inicio (Start timestamp, Cyan #00E5FF)
+        - Outer bar (R=176): Fin (End timestamp, Magenta #FF2A85)
+        - Segment highlight sector connecting the two concentric bars
+        - Precision handles with live floating time stamps
+        - Center hub showing duration and click-to-create
+        - Navigation pills and preset buttons
+        """
+        total = max(1.0, self.custom_trim_total_duration)
+        start_sec = max(0.0, min(self.custom_trim_start, total))
+        end_sec = max(start_sec, min(self.custom_trim_end, total))
+        dur_val = max(0.1, end_sec - start_sec)
+
+        a_start_deg = (start_sec / total) * 360.0
+        a_end_deg = (end_sec / total) * 360.0
+
+        r_inner = 128.0
+        r_outer = 176.0
+
+        hx_start = cx + r_inner * math.cos(math.radians(a_start_deg - 90.0))
+        hy_start = cy + r_inner * math.sin(math.radians(a_start_deg - 90.0))
+
+        hx_end = cx + r_outer * math.cos(math.radians(a_end_deg - 90.0))
+        hy_end = cy + r_outer * math.sin(math.radians(a_end_deg - 90.0))
+
+        # 1. Background Halo & Outer Disc
+        halo = QRadialGradient(cx, cy, self.slice_outer_radius + 24)
+        halo.setColorAt(0.0, QColor(14, 18, 28, 240))
+        halo.setColorAt(0.85, QColor(18, 24, 38, 230))
+        halo.setColorAt(1.0, QColor(10, 12, 20, 0))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(halo))
+        painter.drawEllipse(QPointF(cx, cy), self.slice_outer_radius + 26, self.slice_outer_radius + 26)
+
+        # Subtle disc border
+        painter.setPen(QPen(QColor(50, 65, 95, 120), 1.5))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(QPointF(cx, cy), self.slice_outer_radius, self.slice_outer_radius)
+
+        # 2. Precision Radial Ticks (12 clock positions)
+        for i in range(12):
+            ang = math.radians(i * 30.0 - 90.0)
+            is_cardinal = (i % 3 == 0)
+            rt1 = r_inner - (10 if is_cardinal else 6)
+            rt2 = r_outer + (10 if is_cardinal else 6)
+            tick_color = QColor(120, 150, 190, 80 if is_cardinal else 35)
+            painter.setPen(QPen(tick_color, 1.8 if is_cardinal else 1.0))
+            painter.drawLine(
+                QPointF(cx + rt1 * math.cos(ang), cy + rt1 * math.sin(ang)),
+                QPointF(cx + rt2 * math.cos(ang), cy + rt2 * math.sin(ang))
+            )
+
+        # 3. Highlight Sector connecting inner and outer bars between start and end
+        if a_end_deg > a_start_deg:
+            sector_path = QPainterPath()
+            deg_start = 90.0 - a_start_deg
+            deg_span = -(a_end_deg - a_start_deg)
+            sector_path.arcMoveTo(QRectF(cx - r_outer, cy - r_outer, r_outer * 2, r_outer * 2), deg_start)
+            sector_path.arcTo(QRectF(cx - r_outer, cy - r_outer, r_outer * 2, r_outer * 2), deg_start, deg_span)
+            sector_path.arcTo(QRectF(cx - r_inner, cy - r_inner, r_inner * 2, r_inner * 2), deg_start + deg_span, -deg_span)
+            sector_path.closeSubpath()
+
+            grad_sector = QRadialGradient(cx, cy, r_outer)
+            grad_sector.setColorAt(0.68, QColor(0, 229, 255, 30))
+            grad_sector.setColorAt(1.0, QColor(255, 42, 133, 40))
+            painter.setBrush(QBrush(grad_sector))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawPath(sector_path)
+
+        # 4. Inner Bar (Inicio - Cyan)
+        # Background track
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(0, 229, 255, 35), 8))
+        painter.drawEllipse(QPointF(cx, cy), r_inner, r_inner)
+
+        # Active filled arc (from 12 o'clock to start)
+        if a_start_deg > 0.5:
+            arc_pen = QPen(QColor(0, 229, 255, 120), 8)
+            arc_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(arc_pen)
+            painter.drawArc(
+                QRectF(cx - r_inner, cy - r_inner, r_inner * 2, r_inner * 2),
+                90 * 16,
+                -int(a_start_deg * 16)
+            )
+
+        # Highlight arc between start and end on inner track
+        if a_end_deg > a_start_deg:
+            span_deg = a_end_deg - a_start_deg
+            arc_hl = QPen(QColor(0, 229, 255, 230), 8)
+            arc_hl.setCapStyle(Qt.PenCapStyle.FlatCap)
+            painter.setPen(arc_hl)
+            painter.drawArc(
+                QRectF(cx - r_inner, cy - r_inner, r_inner * 2, r_inner * 2),
+                int((90.0 - a_start_deg) * 16),
+                -int(span_deg * 16)
+            )
+
+        # Inner Handle (Inicio thumb)
+        is_start_hovered = (self.dragging_handle == "start" or self.hovered_trim_btn in ("handle_start", "bar_start"))
+        if is_start_hovered:
+            painter.setBrush(QBrush(QColor(0, 229, 255, 60)))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(QPointF(hx_start, hy_start), 14, 14)
+
+        painter.setBrush(QBrush(QColor(0, 229, 255)))
+        painter.setPen(QPen(QColor(255, 255, 255), 2.5))
+        painter.drawEllipse(QPointF(hx_start, hy_start), 8, 8)
+
+        # 5. Outer Bar (Fin - Magenta)
+        # Background track
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(255, 42, 133, 35), 8))
+        painter.drawEllipse(QPointF(cx, cy), r_outer, r_outer)
+
+        # Active filled arc (from 12 o'clock to end)
+        if a_end_deg > 0.5:
+            arc_pen = QPen(QColor(255, 42, 133, 100), 8)
+            arc_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(arc_pen)
+            painter.drawArc(
+                QRectF(cx - r_outer, cy - r_outer, r_outer * 2, r_outer * 2),
+                90 * 16,
+                -int(a_end_deg * 16)
+            )
+
+        # Highlight arc between start and end on outer track
+        if a_end_deg > a_start_deg:
+            span_deg = a_end_deg - a_start_deg
+            arc_hl = QPen(QColor(255, 42, 133, 230), 8)
+            arc_hl.setCapStyle(Qt.PenCapStyle.FlatCap)
+            painter.setPen(arc_hl)
+            painter.drawArc(
+                QRectF(cx - r_outer, cy - r_outer, r_outer * 2, r_outer * 2),
+                int((90.0 - a_start_deg) * 16),
+                -int(span_deg * 16)
+            )
+
+        # Outer Handle (Fin thumb)
+        is_end_hovered = (self.dragging_handle == "end" or self.hovered_trim_btn in ("handle_end", "bar_end"))
+        if is_end_hovered:
+            painter.setBrush(QBrush(QColor(255, 42, 133, 60)))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(QPointF(hx_end, hy_end), 14, 14)
+
+        painter.setBrush(QBrush(QColor(255, 42, 133)))
+        painter.setPen(QPen(QColor(255, 255, 255), 2.5))
+        painter.drawEllipse(QPointF(hx_end, hy_end), 8, 8)
+
+        # 6. Center Hub (Circle)
+        center_brush = QColor(22, 30, 48, 250) if self.is_center_hovered else QColor(14, 18, 28, 250)
+        center_pen = QPen(QColor(0, 229, 255) if self.is_center_hovered else QColor(70, 95, 140, 200), 2.5)
+        painter.setBrush(QBrush(center_brush))
+        painter.setPen(center_pen)
+        painter.drawEllipse(QPointF(cx, cy), self.center_radius, self.center_radius)
+
+        painter.setFont(QFont("Segoe UI Emoji", 13))
+        painter.drawText(QRectF(cx - 50, cy - 40, 100, 22), Qt.AlignmentFlag.AlignCenter, "🎞️")
+
+        painter.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        painter.setPen(QPen(QColor(0, 229, 255)))
+        painter.drawText(QRectF(cx - 55, cy - 18, 110, 24), Qt.AlignmentFlag.AlignCenter, f"{dur_val:.1f}s")
+
+        painter.setFont(QFont("Segoe UI", 7, QFont.Weight.DemiBold))
+        painter.setPen(QPen(QColor(200, 215, 240)))
+        painter.drawText(QRectF(cx - 60, cy + 8, 120, 16), Qt.AlignmentFlag.AlignCenter,
+                         f"{self._format_sec_short(start_sec)} ➔ {self._format_sec_short(end_sec)}")
+
+        painter.setFont(QFont("Segoe UI", 6))
+        if self.is_center_hovered:
+            painter.setPen(QPen(QColor(0, 230, 118)))
+            painter.drawText(QRectF(cx - 55, cy + 26, 110, 14), Qt.AlignmentFlag.AlignCenter, "⚡ ¡Click para Crear!")
+        else:
+            painter.setPen(QPen(QColor(130, 155, 185)))
+            painter.drawText(QRectF(cx - 55, cy + 26, 110, 14), Qt.AlignmentFlag.AlignCenter, "Click para Generar")
+
+        # 7. Navigation & Preset Buttons
+        # Top-Left: Volver
+        rect_back = QRectF(cx - 215, cy - 225, 75, 26)
+        is_back_hovered = (self.hovered_trim_btn == "back")
+        painter.setBrush(QBrush(QColor(35, 48, 70, 230) if is_back_hovered else QColor(20, 26, 40, 210)))
+        painter.setPen(QPen(QColor(0, 229, 255) if is_back_hovered else QColor(60, 80, 115), 1.2))
+        painter.drawRoundedRect(rect_back, 6, 6)
+        painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        painter.setPen(QPen(QColor(255, 255, 255) if is_back_hovered else QColor(200, 215, 235)))
+        painter.drawText(rect_back, Qt.AlignmentFlag.AlignCenter, "⬅️ Volver")
+
+        # Top-Center: Title
+        painter.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        painter.setPen(QPen(QColor(240, 245, 255)))
+        painter.drawText(QRectF(cx - 80, cy - 225, 160, 26), Qt.AlignmentFlag.AlignCenter, "✂️ Tramo Personalizado")
+
+        # Top-Right: Presets
+        presets = [
+            ("p5", "+5s", QRectF(cx + 45, cy - 225, 36, 26)),
+            ("p10", "+10s", QRectF(cx + 85, cy - 225, 36, 26)),
+            ("p15", "+15s", QRectF(cx + 125, cy - 225, 36, 26)),
+            ("pall", "Todo", QRectF(cx + 165, cy - 225, 45, 26)),
+        ]
+        painter.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
+        for p_id, p_label, p_rect in presets:
+            is_p_hovered = (self.hovered_trim_btn == p_id)
+            painter.setBrush(QBrush(QColor(35, 48, 70, 230) if is_p_hovered else QColor(20, 26, 40, 210)))
+            painter.setPen(QPen(QColor(0, 229, 255) if is_p_hovered else QColor(60, 80, 115), 1.0))
+            painter.drawRoundedRect(p_rect, 5, 5)
+            painter.setPen(QPen(QColor(255, 255, 255) if is_p_hovered else QColor(180, 200, 225)))
+            painter.drawText(p_rect, Qt.AlignmentFlag.AlignCenter, p_label)
+
+        # Bottom: Legend
+        painter.setFont(QFont("Segoe UI", 7))
+        # Left: Inicio
+        painter.setBrush(QBrush(QColor(0, 229, 255)))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(QPointF(cx - 150, cy + 165), 4, 4)
+        painter.setPen(QPen(QColor(180, 220, 255)))
+        painter.drawText(QRectF(cx - 142, cy + 156, 120, 18), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                         f"Inicio: {self._format_sec_short(start_sec)}")
+
+        # Right: Fin
+        painter.setBrush(QBrush(QColor(255, 42, 133)))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(QPointF(cx + 35, cy + 165), 4, 4)
+        painter.setPen(QPen(QColor(255, 180, 210)))
+        painter.drawText(QRectF(cx + 43, cy + 156, 120, 18), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                         f"Fin: {self._format_sec_short(end_sec)}")
+
+        # Bottom Button: Crear GIF
+        rect_create = QRectF(cx - 95, cy + 192, 190, 36)
+        is_create_hovered = (self.hovered_trim_btn == "create")
+        create_brush = QColor(25, 38, 58, 240) if is_create_hovered else QColor(16, 24, 38, 230)
+        painter.setBrush(QBrush(create_brush))
+        create_pen = QPen(QColor(0, 229, 255) if is_create_hovered else QColor(0, 200, 235, 180), 2.0 if is_create_hovered else 1.5)
+        painter.setPen(create_pen)
+        painter.drawRoundedRect(rect_create, 8, 8)
+
+        painter.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        painter.drawText(rect_create, Qt.AlignmentFlag.AlignCenter, f"🎞️ Crear GIF ({dur_val:.1f}s)")
+
+        # 8. Floating handle tags when hovered/dragging
+        if is_start_hovered:
+            pill_w = 78
+            pill_h = 20
+            px = max(10.0, min(self.width() - pill_w - 10.0, hx_start - pill_w / 2.0))
+            py = max(10.0, min(self.height() - pill_h - 10.0, hy_start - 24.0))
+            painter.setBrush(QBrush(QColor(10, 16, 26, 240)))
+            painter.setPen(QPen(QColor(0, 229, 255), 1.2))
+            painter.drawRoundedRect(QRectF(px, py, pill_w, pill_h), 4, 4)
+            painter.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
+            painter.setPen(QPen(QColor(0, 229, 255)))
+            painter.drawText(QRectF(px, py, pill_w, pill_h), Qt.AlignmentFlag.AlignCenter,
+                             f"● {self._format_sec_short(start_sec)}")
+
+        if is_end_hovered:
+            pill_w = 78
+            pill_h = 20
+            px = max(10.0, min(self.width() - pill_w - 10.0, hx_end - pill_w / 2.0))
+            py = max(10.0, min(self.height() - pill_h - 10.0, hy_end + 12.0))
+            painter.setBrush(QBrush(QColor(10, 16, 26, 240)))
+            painter.setPen(QPen(QColor(255, 42, 133), 1.2))
+            painter.drawRoundedRect(QRectF(px, py, pill_w, pill_h), 4, 4)
+            painter.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
+            painter.setPen(QPen(QColor(255, 42, 133)))
+            painter.drawText(QRectF(px, py, pill_w, pill_h), Qt.AlignmentFlag.AlignCenter,
+                             f"● {self._format_sec_short(end_sec)}")
