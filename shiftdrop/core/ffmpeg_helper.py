@@ -177,7 +177,7 @@ def run_ffmpeg(
                         current_sec = us / 1_000_000.0
                         if total_duration and total_duration > 0:
                             pct = min(99, max(1, int((current_sec / total_duration) * 100)))
-                            progress_callback(pct, f"Procesando... {pct}%")
+                            progress_callback(pct, "Procesando...")
                     except Exception:
                         pass
                 elif line == "progress=end":

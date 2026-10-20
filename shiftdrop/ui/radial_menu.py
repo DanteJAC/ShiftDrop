@@ -126,11 +126,10 @@ class RadialMenuOverlay(QWidget):
     def _on_anim_tick(self):
         self.spinner_angle = (self.spinner_angle + 4) % 360
         if self.target_progress > self.current_progress:
-            step = (self.target_progress - self.current_progress) * 0.25 + 0.4
+            step = (self.target_progress - self.current_progress) * 0.35 + 0.5
             self.current_progress = min(self.target_progress, self.current_progress + step)
-        elif self.state == "processing" and self.current_progress < 90.0:
-            # Smooth asymptotic advancement while waiting for processing
-            self.current_progress += 0.12
+        elif self.current_progress > self.target_progress:
+            self.current_progress = self.target_progress
         self.update()
 
     def _calculate_hover(self, pos: QPointF) -> tuple[Optional[int], bool]:
@@ -292,7 +291,9 @@ class RadialMenuOverlay(QWidget):
         """Called during conversion: smoothly advances progress in the center hub."""
         self.target_progress = float(max(0, min(100, percent)))
         if msg:
-            self.status_detail = msg
+            import re
+            clean_msg = re.sub(r'\s*\(?\b\d+%\)?\s*', ' ', msg).strip()
+            self.status_detail = clean_msg if clean_msg else "Procesando..."
         self.update()
 
     def set_conversion_success(self, file_name: str):
@@ -727,24 +728,27 @@ class RadialMenuOverlay(QWidget):
         # Center Hub Content
         if self.state == "processing":
             disp_progress = max(0.0, min(100.0, self.current_progress))
-            # Prominent percentage display
-            painter.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-            painter.setPen(QPen(QColor(0, 229, 255)))
-            painter.drawText(QRectF(cx - 50, cy - 34, 100, 26), Qt.AlignmentFlag.AlignCenter, f"{int(disp_progress)}%")
 
-            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-            painter.setPen(QPen(QColor(255, 255, 255)))
+            # 1. Action Title at top of center hub
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.DemiBold))
+            painter.setPen(QPen(QColor(160, 190, 225)))
             act_title = self.status_action
             if len(act_title) > 16:
                 act_title = act_title[:14] + "..."
-            painter.drawText(QRectF(cx - 65, cy - 4, 130, 18), Qt.AlignmentFlag.AlignCenter, act_title)
+            painter.drawText(QRectF(cx - 45, cy - 33, 90, 16), Qt.AlignmentFlag.AlignCenter, act_title)
 
-            painter.setFont(QFont("Segoe UI", 6))
-            painter.setPen(QPen(QColor(160, 195, 225)))
+            # 2. Prominent percentage display in true optical center
+            painter.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
+            painter.setPen(QPen(QColor(0, 229, 255)))
+            painter.drawText(QRectF(cx - 50, cy - 15, 100, 28), Qt.AlignmentFlag.AlignCenter, f"{int(disp_progress)}%")
+
+            # 3. Status detail / "Procesando..." cleanly framed beneath percentage
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+            painter.setPen(QPen(QColor(240, 248, 255)))
             detail = self.status_detail if self.status_detail else "Procesando..."
-            if len(detail) > 20:
-                detail = detail[:18] + "..."
-            painter.drawText(QRectF(cx - 65, cy + 16, 130, 16), Qt.AlignmentFlag.AlignCenter, detail)
+            if len(detail) > 16:
+                detail = detail[:14] + "..."
+            painter.drawText(QRectF(cx - 48, cy + 15, 96, 16), Qt.AlignmentFlag.AlignCenter, detail)
 
         elif self.state == "completed":
             if self.is_center_hovered:
