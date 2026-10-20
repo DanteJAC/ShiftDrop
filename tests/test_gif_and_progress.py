@@ -23,9 +23,9 @@ class TestGifAndProgress(unittest.TestCase):
 
     def test_slice_definitions_contain_gif_submenu(self):
         self.assertIn("sub_vid_gif", SUB_MENUS)
+        self.assertIn("sub_vid_gif_tramos", SUB_MENUS)
         gif_slices = SUB_MENUS["sub_vid_gif"]
         action_ids = [s.action_id for s in gif_slices]
-        self.assertIn("vid_to_gif_dialog", action_ids)
         self.assertIn("vid_to_gif", action_ids)
 
         # Check video slices has GIF submenu
@@ -74,7 +74,7 @@ class TestGifAndProgress(unittest.TestCase):
         exe = get_ffmpeg_executable()
         tmp_in = tempfile.mktemp(suffix=".mp4")
         subprocess.run(
-            [exe, "-y", "-f", "lavfi", "-i", "testsrc=duration=3:size=160x120:rate=10", tmp_in],
+            [exe, "-y", "-f", "lavfi", "-i", "testsrc=duration=6:size=160x120:rate=10", tmp_in],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=True
@@ -85,13 +85,15 @@ class TestGifAndProgress(unittest.TestCase):
             progress_calls.append(pct)
 
         try:
-            out_gif = video_to_gif(tmp_in, fps=10, scale_width=160, start_sec=0.5, duration_sec=1.5, progress_callback=_cb)
-            self.assertTrue(os.path.exists(out_gif))
-            self.assertGreater(os.path.getsize(out_gif), 0)
-            self.assertTrue(len(progress_calls) > 0)
+            from shiftdrop.core.dispatcher import execute_action
+            # Test middle clip execution
+            out = execute_action("vid_to_gif", [tmp_in], params={"start_position": "middle", "duration_sec": 2.0}, progress_callback=_cb)
+            self.assertTrue(len(out) == 1)
+            self.assertTrue(os.path.exists(out[0]))
+            self.assertGreater(os.path.getsize(out[0]), 0)
             self.assertEqual(progress_calls[-1], 100)
-            if os.path.exists(out_gif):
-                os.remove(out_gif)
+            if os.path.exists(out[0]):
+                os.remove(out[0])
         finally:
             if os.path.exists(tmp_in):
                 os.remove(tmp_in)

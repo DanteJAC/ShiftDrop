@@ -46,11 +46,24 @@ SUB_MENUS: dict[str, list[RadialSlice]] = {
 
     # --- VIDEO SUB-MENUS ---
     "sub_vid_gif": [
-        RadialSlice("vid_to_gif_dialog", "Seleccionar Tramo", "✂️", "Elegir segundo exacto de inicio y fin", "#FF007F", badge="Personalizar"),
-        RadialSlice("vid_to_gif", "Primeros 5s", "⚡", "Desde el segundo 0 al 5", "#FF4081", params={"start_sec": 0, "duration_sec": 5}, badge="5s"),
-        RadialSlice("vid_to_gif", "Primeros 10s", "⏱️", "Desde el segundo 0 al 10", "#F50057", params={"start_sec": 0, "duration_sec": 10}, badge="10s"),
-        RadialSlice("vid_to_gif", "Primeros 15s", "⏳", "Desde el segundo 0 al 15", "#C51162", params={"start_sec": 0, "duration_sec": 15}, badge="15s"),
-        RadialSlice("vid_to_gif", "Video Completo", "🎬", "Convertir todo el video a GIF", "#E040FB", params={"start_sec": 0, "duration_sec": None}, badge="Todo"),
+        RadialSlice("vid_to_gif", "Primeros 5s", "⚡", "Desde el segundo 0 al 5", "#FF4081", params={"start_sec": 0, "duration_sec": 5}, badge="0-5s"),
+        RadialSlice("vid_to_gif", "Primeros 10s", "⏱️", "Desde el segundo 0 al 10", "#F50057", params={"start_sec": 0, "duration_sec": 10}, badge="0-10s"),
+        RadialSlice("vid_to_gif", "Primeros 15s", "⏳", "Desde el segundo 0 al 15", "#C51162", params={"start_sec": 0, "duration_sec": 15}, badge="0-15s"),
+        RadialSlice("vid_to_gif", "Mitad del Video", "🎯", "Clip central de 5 segundos", "#E040FB", params={"start_position": "middle", "duration_sec": 5}, badge="Centro 5s"),
+        RadialSlice("vid_to_gif", "Últimos 5s", "🏁", "Los últimos 5 segundos del video", "#7C4DFF", params={"start_position": "end", "duration_sec": 5}, badge="Final 5s"),
+        RadialSlice("vid_to_gif", "Últimos 10s", "🎬", "Los últimos 10 segundos del video", "#651FFF", params={"start_position": "end", "duration_sec": 10}, badge="Final 10s"),
+        RadialSlice("", "Más Tramos ▸", "✨", "Elegir inicio a los 30s, 1m, 2m...", "#3D5AFE", sub_menu_id="sub_vid_gif_tramos"),
+        RadialSlice("vid_to_gif", "Video Completo", "🎞️", "Convertir todo el video a GIF", "#00E5FF", params={"start_sec": 0, "duration_sec": None}, badge="Todo"),
+    ],
+    "sub_vid_gif_tramos": [
+        RadialSlice("vid_to_gif", "A los 30s (5s)", "⏱️", "Del segundo 30 al 35", "#FF4081", params={"start_sec": 30, "duration_sec": 5}, badge="0:30"),
+        RadialSlice("vid_to_gif", "Al minuto 1 (5s)", "⏳", "Del 1:00 al 1:05", "#F50057", params={"start_sec": 60, "duration_sec": 5}, badge="1:00"),
+        RadialSlice("vid_to_gif", "Al minuto 2 (5s)", "⌛", "Del 2:00 al 2:05", "#C51162", params={"start_sec": 120, "duration_sec": 5}, badge="2:00"),
+        RadialSlice("vid_to_gif", "Al minuto 3 (5s)", "🎬", "Del 3:00 al 3:05", "#E040FB", params={"start_sec": 180, "duration_sec": 5}, badge="3:00"),
+        RadialSlice("vid_to_gif", "Al minuto 5 (5s)", "🎥", "Del 5:00 al 5:05", "#7C4DFF", params={"start_sec": 300, "duration_sec": 5}, badge="5:00"),
+        RadialSlice("vid_to_gif", "A los 30s (10s)", "⏱️", "Del segundo 30 al 40", "#00E5FF", params={"start_sec": 30, "duration_sec": 10}, badge="10s"),
+        RadialSlice("vid_to_gif", "Al minuto 1 (10s)", "⏳", "Del 1:00 al 1:10", "#00E676", params={"start_sec": 60, "duration_sec": 10}, badge="10s"),
+        RadialSlice("vid_to_gif", "Al minuto 2 (10s)", "⌛", "Del 2:00 al 2:10", "#FFD600", params={"start_sec": 120, "duration_sec": 10}, badge="10s"),
     ],
     "sub_vid_compress": [
         RadialSlice("vid_compress", "Equilibrado", "⚖️", "CRF 28 (50-70% ahorro de tamaño)", "#FF9100", params={"crf": 28}, badge="Recomendado"),
@@ -58,7 +71,6 @@ SUB_MENUS: dict[str, list[RadialSlice]] = {
         RadialSlice("vid_compress", "Alta Fidelidad", "💎", "CRF 22 (Preserva todo detalle)", "#FFAB00", params={"crf": 22}),
     ],
     "sub_vid_trim": [
-        RadialSlice("vid_trim_dialog", "Ajustar Tramo", "✂️", "Personalizar segundo de inicio y duración", "#FF3D00", badge="Personalizar"),
         RadialSlice("vid_trim", "Primeros 15s", "⚡", "Recorta del segundo 0 al 15", "#FF3D00", params={"start_sec": 0, "duration_sec": 15}, badge="15s"),
         RadialSlice("vid_trim", "Primeros 30s", "⏱️", "Recorta del segundo 0 al 30", "#FF6E40", params={"start_sec": 0, "duration_sec": 30}, badge="30s"),
         RadialSlice("vid_trim", "Primer 1 min", "⏳", "Recorta del segundo 0 al 60", "#FF9E80", params={"start_sec": 0, "duration_sec": 60}, badge="1m"),

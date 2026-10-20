@@ -176,46 +176,6 @@ class ShiftDropApp(QObject):
         # Update radial menu with files if it didn't have them
         self.radial_menu.dragged_files = files
 
-        # Handle interactive dialog actions
-        if action_id == "vid_to_gif_dialog":
-            target_file = files[0] if files else None
-            if not target_file:
-                self.radial_menu.set_conversion_error("No se encontró video para GIF")
-                return
-            dlg = GifRangeDialog(target_file)
-            if dlg.exec():
-                params = dlg.get_params()
-                action_id = "vid_to_gif"
-                self.radial_menu.state = "processing"
-                self.radial_menu.status_action = "GIF Animado"
-                self.radial_menu.current_progress = 0.0
-                self.radial_menu.target_progress = 8.0
-                self.radial_menu.status_detail = "Iniciando GIF..."
-                self.radial_menu.anim_timer.start(30)
-                self.radial_menu.update()
-            else:
-                self.radial_menu.hide()
-                return
-        elif action_id == "vid_trim_dialog":
-            target_file = files[0] if files else None
-            if not target_file:
-                self.radial_menu.set_conversion_error("No se encontró video para recortar")
-                return
-            dlg = TrimDialog(target_file)
-            if dlg.exec():
-                params = dlg.get_params()
-                action_id = "vid_trim"
-                self.radial_menu.state = "processing"
-                self.radial_menu.status_action = "Recortar Video"
-                self.radial_menu.current_progress = 0.0
-                self.radial_menu.target_progress = 8.0
-                self.radial_menu.status_detail = "Recortando..."
-                self.radial_menu.anim_timer.start(30)
-                self.radial_menu.update()
-            else:
-                self.radial_menu.hide()
-                return
-
         # Start async conversion targeting the exact same folder as the original file
         worker = ConversionWorker(action_id, files, params)
 

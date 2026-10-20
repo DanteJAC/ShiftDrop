@@ -4,6 +4,7 @@ Includes image, video, audio, PDF, document, spreadsheet, and Speech-to-Text tra
 """
 from pathlib import Path
 from typing import Any, Optional, Callable
+from shiftdrop.core.ffmpeg_helper import get_media_duration
 from shiftdrop.core.image_ops import (
     convert_image, compress_image, crop_or_resize_image, images_to_pdf
 )
@@ -202,7 +203,8 @@ def execute_action(
     """
     params = params or {}
     results: list[Path] = []
-    paths = [Path(p) for p in file_paths]
+    paths = [Path(p).resolve() for p in file_paths]
+    output_dir = Path(output_dir).resolve() if output_dir else None
     total_files = len(paths)
 
     def _make_progress_cb(index: int, total: int):
@@ -280,12 +282,26 @@ def execute_action(
             results.append(convert_video(p, "webm", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "vid_to_gif":
         for i, p in enumerate(paths):
+            media_dur = get_media_duration(p)
+            dur = params.get("duration_sec", 10.0)
+            start_pos = params.get("start_position")
+
+            if media_dur > 0 and dur and dur > media_dur:
+                dur = media_dur
+
+            if start_pos == "middle" and media_dur > 0 and dur:
+                s_sec = max(0.0, (media_dur / 2.0) - (dur / 2.0))
+            elif start_pos == "end" and media_dur > 0 and dur:
+                s_sec = max(0.0, media_dur - dur)
+            else:
+                s_sec = float(params.get("start_sec", 0.0))
+
             results.append(video_to_gif(
                 p,
                 fps=params.get("fps", 15),
                 scale_width=params.get("width", 480),
-                start_sec=params.get("start_sec", 0.0),
-                duration_sec=params.get("duration_sec", 10.0),
+                start_sec=s_sec,
+                duration_sec=dur,
                 output_dir=output_dir,
                 progress_callback=_make_progress_cb(i, total_files)
             ))

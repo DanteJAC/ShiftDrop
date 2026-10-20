@@ -154,9 +154,19 @@ class ToastNotification(QWidget):
         self.auto_hide_timer.start(8000)
 
     def _on_open_folder(self):
-        if self.last_result_path and self.last_result_path.exists():
-            folder = self.last_result_path.parent
-            subprocess.run(["explorer", f"/select,{self.last_result_path}"])
+        if self.last_result_path:
+            p = Path(self.last_result_path).resolve()
+            win_path = str(p).replace("/", "\\")
+            if p.exists():
+                try:
+                    subprocess.Popen(f'explorer /select,"{win_path}"')
+                    return
+                except Exception:
+                    pass
+            folder = p.parent if p.is_file() or not p.is_dir() else p
+            if folder.exists():
+                import os
+                os.startfile(str(folder))
 
     def _position_bottom_right(self):
         screen = QApplication.primaryScreen()
