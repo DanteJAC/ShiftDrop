@@ -18,9 +18,11 @@ class ToastNotification(QWidget):
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.Tool
+            Qt.WindowType.Tool |
+            Qt.WindowType.WindowDoesNotAcceptFocus
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         self.setFixedSize(360, 100)
 
         # Layout
@@ -125,8 +127,9 @@ class ToastNotification(QWidget):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(pct)
         self.open_folder_btn.hide()
-        self._position_bottom_right()
-        self.show()
+        if not self.isVisible():
+            self._position_bottom_right()
+            self.show()
 
     def show_success(self, message: str, result_path: Optional[Path | str] = None):
         self.icon_label.setText("✅")
@@ -139,8 +142,9 @@ class ToastNotification(QWidget):
         else:
             self.open_folder_btn.hide()
 
-        self._position_bottom_right()
-        self.show()
+        if not self.isVisible():
+            self._position_bottom_right()
+            self.show()
         self.auto_hide_timer.start(6000)  # Auto-hide after 6 seconds
 
     def show_error(self, message: str):
@@ -149,8 +153,9 @@ class ToastNotification(QWidget):
         self.desc_label.setText(message)
         self.progress_bar.hide()
         self.open_folder_btn.hide()
-        self._position_bottom_right()
-        self.show()
+        if not self.isVisible():
+            self._position_bottom_right()
+            self.show()
         self.auto_hide_timer.start(8000)
 
     def _on_open_folder(self):

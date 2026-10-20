@@ -35,6 +35,7 @@ class RadialMenuOverlay(QWidget):
             Qt.WindowType.WindowDoesNotAcceptFocus
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         self.setAcceptDrops(True)
         self.setMouseTracking(True)
 
@@ -187,7 +188,7 @@ class RadialMenuOverlay(QWidget):
             self._enter_custom_gif_trim_mode()
             return
 
-        # 3. Terminal action: Execute conversion immediately and keep menu alive!
+        # 3. Terminal action: Execute conversion immediately and hide radial wheel!
         if target_slice.action_id:
             self.state = "processing"
             self.status_action = target_slice.title
@@ -200,6 +201,8 @@ class RadialMenuOverlay(QWidget):
             params = target_slice.params.copy() if target_slice.params else {}
             files = self.dragged_files.copy()
             self.action_triggered.emit(target_slice.action_id, files, params)
+            self.hide()
+            self.dismissed.emit()
 
     def _navigate_back(self):
         """Returns to parent radial wheel."""
@@ -271,6 +274,8 @@ class RadialMenuOverlay(QWidget):
 
         files = self.dragged_files.copy()
         self.action_triggered.emit("vid_to_gif", files, params)
+        self.hide()
+        self.dismissed.emit()
 
     def _angle_from_pos(self, pos: QPointF) -> float:
         cx = self.width() / 2.0

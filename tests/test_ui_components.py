@@ -2,7 +2,7 @@ import os
 import unittest
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QPointF, QMimeData, QUrl
+from PyQt6.QtCore import Qt, QPointF, QMimeData, QUrl
 from PyQt6.QtGui import QDropEvent
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
@@ -64,11 +64,29 @@ class TestUIComponents(unittest.TestCase):
 
     def test_toast_notification(self):
         toast = ToastNotification()
-        toast.show_progress("Test progress")
+        self.assertTrue(bool(toast.windowFlags() & Qt.WindowType.WindowDoesNotAcceptFocus))
+        self.assertTrue(toast.testAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating))
+
+        toast.show_progress("Test progress", 50)
         self.assertEqual(toast.title_label.text(), "Procesando...")
+        self.assertEqual(toast.progress_bar.value(), 50)
 
         toast.show_success("Test success", result_path="dummy.png")
         self.assertEqual(toast.title_label.text(), "¡Listo!")
+
+    def test_radial_menu_background_execution_flags(self):
+        menu = RadialMenuOverlay()
+        self.assertTrue(bool(menu.windowFlags() & Qt.WindowType.WindowDoesNotAcceptFocus))
+        self.assertTrue(menu.testAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating))
+
+        # Check action selection hides the menu so work continues in background
+        dismissed_called = []
+        menu.dismissed.connect(lambda: dismissed_called.append(True))
+        menu.set_files(["sample.png"])
+        webp_idx = next(i for i, s in enumerate(menu.slices) if s.action_id == "img_to_webp")
+        menu._select_slice(webp_idx)
+        self.assertFalse(menu.isVisible())
+        self.assertEqual(len(dismissed_called), 1)
 
 if __name__ == "__main__":
     unittest.main()

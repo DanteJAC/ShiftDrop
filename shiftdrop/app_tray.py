@@ -75,6 +75,7 @@ class ShiftDropApp(QObject):
         # Connections
         self.listener.drag_started.connect(self._on_drag_started)
         self.listener.drag_cancelled.connect(self._on_drag_cancelled)
+        self.listener.clicked_outside.connect(self._on_clicked_outside)
 
         self.radial_menu.action_triggered.connect(self._on_action_triggered)
         self.radial_menu.dismissed.connect(self._on_radial_dismissed)
@@ -149,9 +150,16 @@ class ShiftDropApp(QObject):
     def _on_drag_cancelled(self):
         if self.radial_menu.isVisible():
             self.radial_menu.hide()
+        self.listener.set_menu_active(False)
+
+    def _on_clicked_outside(self, x: int, y: int):
+        if self.radial_menu.isVisible():
+            if not self.radial_menu.geometry().contains(x, y):
+                self.radial_menu.hide()
+                self.radial_menu.dismissed.emit()
 
     def _on_radial_dismissed(self):
-        pass
+        self.listener.set_menu_active(False)
 
     def _on_action_triggered(self, action_id: str, files: list[str], params: dict):
         if not action_id:
@@ -210,6 +218,7 @@ class ShiftDropApp(QObject):
             screen = QApplication.primaryScreen().geometry()
             cx, cy = screen.center().x(), screen.center().y()
             self.radial_menu.show_at(cx, cy, initial_files=files)
+            self.listener.set_menu_active(True)
 
     def _show_formats_catalog(self):
         dlg = MoreFormatsDialog(current_category="image")
