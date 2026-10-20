@@ -33,8 +33,34 @@ class TrimDialog(QDialog):
                 color: #FFFFFF;
                 border: 1px solid #3B4B66;
                 border-radius: 6px;
-                padding: 4px;
+                min-height: 38px;
+                padding-left: 10px;
+                padding-right: 26px;
                 font-weight: bold;
+                font-size: 11pt;
+            }
+            QDoubleSpinBox::up-button {
+                subcontrol-origin: border;
+                subcontrol-position: top right;
+                width: 22px;
+                background-color: #243044;
+                border-left: 1px solid #3B4B66;
+                border-bottom: 1px solid #3B4B66;
+                border-top-right-radius: 5px;
+            }
+            QDoubleSpinBox::up-button:hover {
+                background-color: #3B4B66;
+            }
+            QDoubleSpinBox::down-button {
+                subcontrol-origin: border;
+                subcontrol-position: bottom right;
+                width: 22px;
+                background-color: #243044;
+                border-left: 1px solid #3B4B66;
+                border-bottom-right-radius: 5px;
+            }
+            QDoubleSpinBox::down-button:hover {
+                background-color: #3B4B66;
             }
             QPushButton {
                 background-color: #00E5FF;

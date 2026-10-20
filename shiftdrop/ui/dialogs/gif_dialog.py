@@ -17,7 +17,7 @@ class GifRangeDialog(QDialog):
         super().__init__(parent)
         self.file_path = Path(file_path)
         self.setWindowTitle(f"🎞️ Crear GIF: {self.file_path.name}")
-        self.setFixedSize(480, 420)
+        self.setFixedSize(500, 440)
         self.setStyleSheet("""
             QDialog {
                 background-color: #121824;
@@ -33,9 +33,34 @@ class GifRangeDialog(QDialog):
                 color: #00E5FF;
                 border: 1px solid #334460;
                 border-radius: 6px;
-                padding: 5px 8px;
+                min-height: 40px;
+                padding-left: 10px;
+                padding-right: 28px;
                 font-weight: bold;
                 font-size: 11pt;
+            }
+            QDoubleSpinBox::up-button {
+                subcontrol-origin: border;
+                subcontrol-position: top right;
+                width: 24px;
+                background-color: #243044;
+                border-left: 1px solid #334460;
+                border-bottom: 1px solid #334460;
+                border-top-right-radius: 5px;
+            }
+            QDoubleSpinBox::up-button:hover {
+                background-color: #334460;
+            }
+            QDoubleSpinBox::down-button {
+                subcontrol-origin: border;
+                subcontrol-position: bottom right;
+                width: 24px;
+                background-color: #243044;
+                border-left: 1px solid #334460;
+                border-bottom-right-radius: 5px;
+            }
+            QDoubleSpinBox::down-button:hover {
+                background-color: #334460;
             }
             QComboBox {
                 background-color: #1A2332;
@@ -141,9 +166,12 @@ class GifRangeDialog(QDialog):
         # Start Time Box
         vbox_start = QVBoxLayout()
         vbox_start.setSpacing(4)
-        lbl_start = QLabel("Inicio (segundos):")
+        lbl_start = QLabel("Inicio:")
         lbl_start.setStyleSheet("font-size: 8pt; color: #CCD6E0; font-weight: bold;")
         self.start_spin = QDoubleSpinBox()
+        self.start_spin.setMinimumHeight(40)
+        self.start_spin.setDecimals(1)
+        self.start_spin.setSuffix(" s")
         self.start_spin.setRange(0.0, max(0.0, self.total_duration - 0.2))
         self.start_spin.setSingleStep(0.5)
         self.start_spin.setValue(0.0)
@@ -155,9 +183,12 @@ class GifRangeDialog(QDialog):
         # End Time Box
         vbox_end = QVBoxLayout()
         vbox_end.setSpacing(4)
-        lbl_end = QLabel("Fin (segundos):")
+        lbl_end = QLabel("Fin:")
         lbl_end.setStyleSheet("font-size: 8pt; color: #CCD6E0; font-weight: bold;")
         self.end_spin = QDoubleSpinBox()
+        self.end_spin.setMinimumHeight(40)
+        self.end_spin.setDecimals(1)
+        self.end_spin.setSuffix(" s")
         self.end_spin.setRange(0.2, self.total_duration)
         self.end_spin.setSingleStep(0.5)
         self.end_spin.setValue(min(10.0, self.total_duration))
