@@ -61,7 +61,12 @@ class RadialMenuOverlay(QWidget):
         self.status_file_name: str = ""
         self.status_error: str = ""
 
-        # Animation timer for spinner
+        # Progress tracking
+        self.current_progress: float = 0.0
+        self.target_progress: float = 0.0
+        self.status_detail: str = ""
+
+        # Animation timer for spinner and smooth progress
         self.spinner_angle: float = 0.0
         self.anim_timer = QTimer(self)
         self.anim_timer.timeout.connect(self._on_anim_tick)
@@ -112,7 +117,13 @@ class RadialMenuOverlay(QWidget):
         self.update()
 
     def _on_anim_tick(self):
-        self.spinner_angle = (self.spinner_angle + 12) % 360
+        self.spinner_angle = (self.spinner_angle + 4) % 360
+        if self.target_progress > self.current_progress:
+            step = (self.target_progress - self.current_progress) * 0.25 + 0.4
+            self.current_progress = min(self.target_progress, self.current_progress + step)
+        elif self.state == "processing" and self.current_progress < 90.0:
+            # Smooth asymptotic advancement while waiting for processing
+            self.current_progress += 0.12
         self.update()
 
     def _calculate_hover(self, pos: QPointF) -> tuple[Optional[int], bool]:
@@ -169,6 +180,9 @@ class RadialMenuOverlay(QWidget):
         if target_slice.action_id:
             self.state = "processing"
             self.status_action = target_slice.title
+            self.current_progress = 0.0
+            self.target_progress = 8.0
+            self.status_detail = "Iniciando..."
             self.anim_timer.start(30)
             self.update()
 
@@ -191,9 +205,18 @@ class RadialMenuOverlay(QWidget):
             self.dismissed.emit()
 
     # --- LIVE IN-WHEEL FEEDBACK METHODS ---
+    def set_conversion_progress(self, percent: int, msg: str = ""):
+        """Called during conversion: smoothly advances progress in the center hub."""
+        self.target_progress = float(max(0, min(100, percent)))
+        if msg:
+            self.status_detail = msg
+        self.update()
+
     def set_conversion_success(self, file_name: str):
         """Called when conversion completes: displays success inside the center hub without closing."""
         self.anim_timer.stop()
+        self.current_progress = 100.0
+        self.target_progress = 100.0
         self.state = "completed"
         self.status_file_name = file_name
         self.update()
@@ -423,28 +446,46 @@ class RadialMenuOverlay(QWidget):
         painter.setPen(QPen(center_pen_color, 3 if (self.is_center_hovered or self.state != "ready") else 2))
         painter.drawEllipse(QPointF(cx, cy), self.center_radius, self.center_radius)
 
-        # Center Spinner / Halo when processing
+        # Center Progress Ring Track & Active Arc when processing
         if self.state == "processing":
-            spinner_pen = QPen(QColor(0, 229, 255), 3)
-            spinner_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            painter.setPen(spinner_pen)
+            # 1. Subtle Background Track Ring
+            track_pen = QPen(QColor(255, 255, 255, 30), 4)
+            painter.setPen(track_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            spin_rect = QRectF(cx - self.center_radius + 4, cy - self.center_radius + 4, (self.center_radius - 4)*2, (self.center_radius - 4)*2)
-            painter.drawArc(spin_rect, int(self.spinner_angle * 16), int(100 * 16))
+            ring_r = self.center_radius - 6
+            spin_rect = QRectF(cx - ring_r, cy - ring_r, ring_r * 2, ring_r * 2)
+            painter.drawEllipse(QPointF(cx, cy), ring_r, ring_r)
+
+            # 2. Active Progress Arc filling clockwise from 12 o'clock (90 deg)
+            disp_progress = max(2.0, min(100.0, self.current_progress))
+            arc_pen = QPen(QColor(0, 229, 255), 4)
+            arc_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(arc_pen)
+            start_angle = 90 * 16
+            span_angle = -int((disp_progress / 100.0) * 360.0 * 16)
+            painter.drawArc(spin_rect, start_angle, span_angle)
 
         # Center Hub Content
         if self.state == "processing":
-            painter.setFont(QFont("Segoe UI Emoji", 20))
+            disp_progress = max(0.0, min(100.0, self.current_progress))
+            # Prominent percentage display
+            painter.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
             painter.setPen(QPen(QColor(0, 229, 255)))
-            painter.drawText(QRectF(cx - 50, cy - 36, 100, 32), Qt.AlignmentFlag.AlignCenter, "⚡")
+            painter.drawText(QRectF(cx - 50, cy - 34, 100, 26), Qt.AlignmentFlag.AlignCenter, f"{int(disp_progress)}%")
 
-            painter.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+            painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
             painter.setPen(QPen(QColor(255, 255, 255)))
-            painter.drawText(QRectF(cx - 65, cy - 4, 130, 20), Qt.AlignmentFlag.AlignCenter, f"{self.status_action}")
+            act_title = self.status_action
+            if len(act_title) > 16:
+                act_title = act_title[:14] + "..."
+            painter.drawText(QRectF(cx - 65, cy - 4, 130, 18), Qt.AlignmentFlag.AlignCenter, act_title)
 
-            painter.setFont(QFont("Segoe UI", 7))
-            painter.setPen(QPen(QColor(0, 229, 255)))
-            painter.drawText(QRectF(cx - 65, cy + 16, 130, 20), Qt.AlignmentFlag.AlignCenter, "En la misma carpeta...")
+            painter.setFont(QFont("Segoe UI", 6))
+            painter.setPen(QPen(QColor(160, 195, 225)))
+            detail = self.status_detail if self.status_detail else "Procesando..."
+            if len(detail) > 20:
+                detail = detail[:18] + "..."
+            painter.drawText(QRectF(cx - 65, cy + 16, 130, 16), Qt.AlignmentFlag.AlignCenter, detail)
 
         elif self.state == "completed":
             if self.is_center_hovered:

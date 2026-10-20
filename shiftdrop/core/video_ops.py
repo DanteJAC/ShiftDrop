@@ -4,15 +4,16 @@ Non-destructive: never overwrites existing files.
 Properly handles WebM (VP9/Opus), MP4 (H.264/AAC), MKV, MOV, and AVI containers.
 """
 from pathlib import Path
-from typing import Optional
-from shiftdrop.core.ffmpeg_helper import run_ffmpeg
+from typing import Optional, Callable
+from shiftdrop.core.ffmpeg_helper import run_ffmpeg, get_media_duration
 from shiftdrop.core.path_utils import get_unique_target_path
 
 def convert_video(
     input_path: Path | str,
     output_format: str,
     output_dir: Optional[Path | str] = None,
-    codec: Optional[str] = None
+    codec: Optional[str] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> Path:
     """
     Converts video to target format (e.g., 'mp4', 'webm', 'mkv', 'mov', 'avi').
@@ -45,7 +46,8 @@ def convert_video(
         args.extend(["-c:v", "libx264", "-c:a", "aac"])
 
     args.append(str(target_path))
-    run_ffmpeg(args)
+    total_dur = get_media_duration(input_path)
+    run_ffmpeg(args, total_duration=total_dur, progress_callback=progress_callback)
     return target_path
 
 
@@ -55,7 +57,8 @@ def video_to_gif(
     scale_width: int = 480,
     start_sec: float = 0.0,
     duration_sec: Optional[float] = 10.0,
-    output_dir: Optional[Path | str] = None
+    output_dir: Optional[Path | str] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> Path:
     """
     Converts video clip to high-quality animated GIF using a two-pass palette filter.
@@ -69,13 +72,22 @@ def video_to_gif(
     vf = f"fps={fps},scale={scale_width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer"
 
     args = []
-    if start_sec > 0:
+    if start_sec and start_sec > 0:
         args.extend(["-ss", str(start_sec)])
-    if duration_sec:
+    if duration_sec and duration_sec > 0:
         args.extend(["-t", str(duration_sec)])
 
     args.extend(["-i", str(input_path), "-vf", vf, str(target_path)])
-    run_ffmpeg(args)
+
+    media_dur = get_media_duration(input_path)
+    if duration_sec and duration_sec > 0:
+        expected_dur = duration_sec
+    elif media_dur > start_sec:
+        expected_dur = media_dur - start_sec
+    else:
+        expected_dur = 10.0
+
+    run_ffmpeg(args, total_duration=expected_dur, progress_callback=progress_callback)
     return target_path
 
 
@@ -120,7 +132,8 @@ def compress_video(
     input_path: Path | str,
     crf: int = 28,  # Higher CRF = more compression (23 default, 28-32 small)
     max_height: Optional[int] = 720,  # Downscale to 720p if higher
-    output_dir: Optional[Path | str] = None
+    output_dir: Optional[Path | str] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> Path:
     """
     Compresses video to reduce file size significantly using H.264 CRF & optional downscaling.
@@ -136,7 +149,8 @@ def compress_video(
         args.extend(["-vf", f"scale='min(iw, -2)':'min(ih, {max_height})':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2"])
 
     args.extend(["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(target_path)])
-    run_ffmpeg(args)
+    total_dur = get_media_duration(input_path)
+    run_ffmpeg(args, total_duration=total_dur, progress_callback=progress_callback)
     return target_path
 
 
@@ -145,7 +159,8 @@ def trim_video(
     start_sec: float,
     end_sec: Optional[float] = None,
     duration_sec: Optional[float] = None,
-    output_dir: Optional[Path | str] = None
+    output_dir: Optional[Path | str] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> Path:
     """
     Trims/cuts video to specified duration.
@@ -160,8 +175,12 @@ def trim_video(
     args = ["-ss", str(start_sec), "-i", str(input_path)]
     if duration_sec:
         args.extend(["-t", str(duration_sec)])
+        expected_dur = duration_sec
     elif end_sec:
         args.extend(["-to", str(end_sec - start_sec)])
+        expected_dur = end_sec - start_sec
+    else:
+        expected_dur = 10.0
 
     # Select codec based on container format to guarantee compatibility
     if ext == ".webm":
@@ -175,5 +194,5 @@ def trim_video(
     else:
         args.extend(["-c", "copy", str(target_path)])
 
-    run_ffmpeg(args)
+    run_ffmpeg(args, total_duration=expected_dur, progress_callback=progress_callback)
     return target_path

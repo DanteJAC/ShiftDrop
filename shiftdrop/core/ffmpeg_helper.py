@@ -3,10 +3,12 @@ FFmpeg Helper: Resolves and validates the local FFmpeg executable.
 Prioritizes bundled imageio-ffmpeg binary, then system PATH.
 """
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable
 import sys
 import shutil
 import subprocess
+import threading
+import re
 
 _cached_ffmpeg_path = None
 
@@ -75,11 +77,56 @@ def get_ffmpeg_executable() -> str:
         "No se encontró FFmpeg. Asegúrate de tener imageio-ffmpeg instalado en el entorno."
     )
 
-def run_ffmpeg(args: list[str], timeout: Optional[int] = None) -> subprocess.CompletedProcess:
-    """Executes FFmpeg with the given arguments."""
+def get_media_duration(file_path: Path | str) -> float:
+    """
+    Returns the duration of an audio or video file in seconds using FFmpeg.
+    Returns 0.0 if unable to determine duration.
+    """
+    try:
+        exe = get_ffmpeg_executable()
+        startupinfo = None
+        if hasattr(subprocess, "STARTUPINFO"):
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+
+        cmd = [exe, "-hide_banner", "-i", str(file_path)]
+        res = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            errors="ignore",
+            startupinfo=startupinfo,
+            timeout=8
+        )
+        m = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", res.stderr)
+        if m:
+            hours = float(m.group(1))
+            minutes = float(m.group(2))
+            seconds = float(m.group(3))
+            return hours * 3600.0 + minutes * 60.0 + seconds
+    except Exception:
+        pass
+    return 0.0
+
+
+def run_ffmpeg(
+    args: list[str],
+    timeout: Optional[int] = None,
+    total_duration: Optional[float] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
+) -> subprocess.CompletedProcess:
+    """
+    Executes FFmpeg with the given arguments.
+    Supports real-time progress callbacks when total_duration and progress_callback are supplied.
+    """
     exe = get_ffmpeg_executable()
-    cmd = [exe, "-hide_banner", "-loglevel", "error", "-y"] + args
-    
+    cmd = [exe, "-hide_banner", "-loglevel", "error", "-y"]
+    if progress_callback:
+        cmd.extend(["-progress", "pipe:1", "-stats_period", "0.2"])
+    cmd.extend(args)
+
     # Hide console window on Windows
     startupinfo = None
     if hasattr(subprocess, "STARTUPINFO"):
@@ -87,11 +134,76 @@ def run_ffmpeg(args: list[str], timeout: Optional[int] = None) -> subprocess.Com
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startupinfo.wShowWindow = subprocess.SW_HIDE
 
-    return subprocess.run(
+    if not progress_callback:
+        return subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            startupinfo=startupinfo,
+            timeout=timeout,
+            check=True
+        )
+
+    # Real-time execution with thread-safe pipe draining
+    proc = subprocess.Popen(
         cmd,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        startupinfo=startupinfo,
-        timeout=timeout,
-        check=True
+        errors="replace",
+        startupinfo=startupinfo
     )
+
+    stderr_lines: list[str] = []
+
+    def _drain_stderr():
+        try:
+            if proc.stderr:
+                for line in proc.stderr:
+                    stderr_lines.append(line)
+        except Exception:
+            pass
+
+    t_err = threading.Thread(target=_drain_stderr, daemon=True)
+    t_err.start()
+
+    try:
+        if proc.stdout:
+            for line in proc.stdout:
+                line = line.strip()
+                if line.startswith("out_time_us="):
+                    try:
+                        us = int(line.split("=")[1])
+                        current_sec = us / 1_000_000.0
+                        if total_duration and total_duration > 0:
+                            pct = min(99, max(1, int((current_sec / total_duration) * 100)))
+                            progress_callback(pct, f"Procesando... {pct}%")
+                    except Exception:
+                        pass
+                elif line == "progress=end":
+                    progress_callback(100, "Finalizando...")
+    except Exception:
+        pass
+
+    ret = proc.wait(timeout=timeout)
+    t_err.join(timeout=1.0)
+
+    if proc.stdout:
+        try:
+            proc.stdout.close()
+        except Exception:
+            pass
+    if proc.stderr:
+        try:
+            proc.stderr.close()
+        except Exception:
+            pass
+
+    if ret != 0:
+        err_msg = "".join(stderr_lines).strip()
+        raise subprocess.CalledProcessError(ret, cmd, output="", stderr=err_msg)
+
+    if progress_callback:
+        progress_callback(100, "¡Listo!")
+
+    return subprocess.CompletedProcess(cmd, ret, stdout="", stderr="".join(stderr_lines))

@@ -19,11 +19,12 @@ from shiftdrop.ui.dialogs.compress_dialog import CompressDialog
 from shiftdrop.ui.dialogs.crop_dialog import CropDialog
 from shiftdrop.ui.dialogs.merge_dialog import MergeDialog
 from shiftdrop.ui.dialogs.more_formats import MoreFormatsDialog
+from shiftdrop.ui.dialogs.gif_dialog import GifRangeDialog
 from shiftdrop.core.dispatcher import execute_action, detect_file_category
 from shiftdrop.listener.explorer_helper import get_selected_files_in_explorer
 
 class ConversionSignals(QObject):
-    progress = pyqtSignal(str)
+    progress = pyqtSignal(int, str)  # percent, message
     success = pyqtSignal(str, str)  # message, output_path
     error = pyqtSignal(str)
 
@@ -38,8 +39,17 @@ class ConversionWorker(QRunnable):
     @pyqtSlot()
     def run(self):
         try:
-            self.signals.progress.emit(f"Procesando {len(self.files)} archivo(s)...")
-            results = execute_action(self.action_id, self.files, self.params)
+            def on_progress(percent: int, msg: str):
+                self.signals.progress.emit(percent, msg)
+
+            on_progress(5, f"Iniciando {len(self.files)} archivo(s)...")
+            results = execute_action(
+                self.action_id,
+                self.files,
+                self.params,
+                progress_callback=on_progress
+            )
+            on_progress(100, "Completado")
             if results:
                 first_out = str(results[0])
                 msg = f"Generado: {Path(first_out).name}"
@@ -166,9 +176,54 @@ class ShiftDropApp(QObject):
         # Update radial menu with files if it didn't have them
         self.radial_menu.dragged_files = files
 
+        # Handle interactive dialog actions
+        if action_id == "vid_to_gif_dialog":
+            target_file = files[0] if files else None
+            if not target_file:
+                self.radial_menu.set_conversion_error("No se encontró video para GIF")
+                return
+            dlg = GifRangeDialog(target_file)
+            if dlg.exec():
+                params = dlg.get_params()
+                action_id = "vid_to_gif"
+                self.radial_menu.state = "processing"
+                self.radial_menu.status_action = "GIF Animado"
+                self.radial_menu.current_progress = 0.0
+                self.radial_menu.target_progress = 8.0
+                self.radial_menu.status_detail = "Iniciando GIF..."
+                self.radial_menu.anim_timer.start(30)
+                self.radial_menu.update()
+            else:
+                self.radial_menu.hide()
+                return
+        elif action_id == "vid_trim_dialog":
+            target_file = files[0] if files else None
+            if not target_file:
+                self.radial_menu.set_conversion_error("No se encontró video para recortar")
+                return
+            dlg = TrimDialog(target_file)
+            if dlg.exec():
+                params = dlg.get_params()
+                action_id = "vid_trim"
+                self.radial_menu.state = "processing"
+                self.radial_menu.status_action = "Recortar Video"
+                self.radial_menu.current_progress = 0.0
+                self.radial_menu.target_progress = 8.0
+                self.radial_menu.status_detail = "Recortando..."
+                self.radial_menu.anim_timer.start(30)
+                self.radial_menu.update()
+            else:
+                self.radial_menu.hide()
+                return
+
         # Start async conversion targeting the exact same folder as the original file
         worker = ConversionWorker(action_id, files, params)
-        worker.signals.progress.connect(self.toast.show_progress)
+
+        def on_progress(pct: int, msg: str):
+            self.radial_menu.set_conversion_progress(pct, msg)
+            self.toast.show_progress(msg, pct)
+
+        worker.signals.progress.connect(on_progress)
 
         def on_success(msg: str, out_path: str):
             fname = Path(out_path).name if out_path else "Archivo"

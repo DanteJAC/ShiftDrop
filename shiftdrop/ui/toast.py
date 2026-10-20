@@ -112,13 +112,18 @@ class ToastNotification(QWidget):
         self.auto_hide_timer.setSingleShot(True)
         self.auto_hide_timer.timeout.connect(self.hide)
 
-    def show_progress(self, message: str):
+    def show_progress(self, message: str, percent: int = 0):
         self.auto_hide_timer.stop()
         self.icon_label.setText("⏳")
         self.title_label.setText("Procesando...")
-        self.desc_label.setText(message)
+        pct = max(0, min(100, percent))
+        if pct > 0:
+            self.desc_label.setText(f"{message} ({pct}%)")
+        else:
+            self.desc_label.setText(message)
         self.progress_bar.show()
-        self.progress_bar.setRange(0, 0)  # Indeterminate pulsing
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(pct)
         self.open_folder_btn.hide()
         self._position_bottom_right()
         self.show()

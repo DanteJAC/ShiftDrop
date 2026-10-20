@@ -45,12 +45,20 @@ SUB_MENUS: dict[str, list[RadialSlice]] = {
     ],
 
     # --- VIDEO SUB-MENUS ---
+    "sub_vid_gif": [
+        RadialSlice("vid_to_gif_dialog", "Seleccionar Tramo", "✂️", "Elegir segundo exacto de inicio y fin", "#FF007F", badge="Personalizar"),
+        RadialSlice("vid_to_gif", "Primeros 5s", "⚡", "Desde el segundo 0 al 5", "#FF4081", params={"start_sec": 0, "duration_sec": 5}, badge="5s"),
+        RadialSlice("vid_to_gif", "Primeros 10s", "⏱️", "Desde el segundo 0 al 10", "#F50057", params={"start_sec": 0, "duration_sec": 10}, badge="10s"),
+        RadialSlice("vid_to_gif", "Primeros 15s", "⏳", "Desde el segundo 0 al 15", "#C51162", params={"start_sec": 0, "duration_sec": 15}, badge="15s"),
+        RadialSlice("vid_to_gif", "Video Completo", "🎬", "Convertir todo el video a GIF", "#E040FB", params={"start_sec": 0, "duration_sec": None}, badge="Todo"),
+    ],
     "sub_vid_compress": [
         RadialSlice("vid_compress", "Equilibrado", "⚖️", "CRF 28 (50-70% ahorro de tamaño)", "#FF9100", params={"crf": 28}, badge="Recomendado"),
         RadialSlice("vid_compress", "Máx. Ahorro", "🗜️", "CRF 32 + 720p (Ultra ligero)", "#FF6D00", params={"crf": 32, "max_height": 720}, badge="720p"),
         RadialSlice("vid_compress", "Alta Fidelidad", "💎", "CRF 22 (Preserva todo detalle)", "#FFAB00", params={"crf": 22}),
     ],
     "sub_vid_trim": [
+        RadialSlice("vid_trim_dialog", "Ajustar Tramo", "✂️", "Personalizar segundo de inicio y duración", "#FF3D00", badge="Personalizar"),
         RadialSlice("vid_trim", "Primeros 15s", "⚡", "Recorta del segundo 0 al 15", "#FF3D00", params={"start_sec": 0, "duration_sec": 15}, badge="15s"),
         RadialSlice("vid_trim", "Primeros 30s", "⏱️", "Recorta del segundo 0 al 30", "#FF6E40", params={"start_sec": 0, "duration_sec": 30}, badge="30s"),
         RadialSlice("vid_trim", "Primer 1 min", "⏳", "Recorta del segundo 0 al 60", "#FF9E80", params={"start_sec": 0, "duration_sec": 60}, badge="1m"),
@@ -153,7 +161,7 @@ IMAGE_MULTI_SLICES = [
 # Slices when dragging a Video
 VIDEO_SLICES = [
     RadialSlice("vid_to_mp4", "MP4", "🎬", "Convertir a MP4 universal (H.264)", "#00E5FF", badge="H.264"),
-    RadialSlice("vid_to_gif", "GIF Animado", "🎞️", "Convertir a GIF de alta calidad", "#FF007F"),
+    RadialSlice("", "GIF Animado ▸", "🎞️", "Convertir a GIF o elegir tramo", "#FF007F", sub_menu_id="sub_vid_gif"),
     RadialSlice("vid_extract_mp3", "Extraer MP3", "🎵", "Pista de audio MP3 a 320 kbps", "#00E676", badge="320k"),
     RadialSlice("", "Transcribir ▸", "🎙️", "Extraer y transcribir voz a texto/srt", "#E040FB", sub_menu_id="sub_transcribe", badge="IA Offline"),
     RadialSlice("", "Comprimir ▸", "🗜️", "Reducir peso del video", "#FF9100", sub_menu_id="sub_vid_compress"),

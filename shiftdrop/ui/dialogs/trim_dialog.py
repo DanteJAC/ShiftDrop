@@ -8,11 +8,14 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
+from shiftdrop.core.ffmpeg_helper import get_media_duration
 
 class TrimDialog(QDialog):
     def __init__(self, file_path: str, parent=None):
         super().__init__(parent)
         self.file_path = Path(file_path)
+        self.total_duration = get_media_duration(self.file_path)
+        max_limit = self.total_duration if self.total_duration > 0 else 99999.0
         self.setWindowTitle(f"⏱️ Ajustar Duración: {self.file_path.name}")
         self.setFixedSize(420, 220)
         self.setStyleSheet("""
@@ -68,7 +71,7 @@ class TrimDialog(QDialog):
         start_vbox = QVBoxLayout()
         start_label = QLabel("Inicio (segundos):")
         self.start_spin = QDoubleSpinBox()
-        self.start_spin.setRange(0.0, 99999.0)
+        self.start_spin.setRange(0.0, max_limit)
         self.start_spin.setSingleStep(1.0)
         self.start_spin.setValue(0.0)
         start_vbox.addWidget(start_label)
@@ -79,9 +82,10 @@ class TrimDialog(QDialog):
         dur_vbox = QVBoxLayout()
         dur_label = QLabel("Duración (segundos):")
         self.dur_spin = QDoubleSpinBox()
-        self.dur_spin.setRange(0.5, 99999.0)
+        self.dur_spin.setRange(0.5, max_limit)
         self.dur_spin.setSingleStep(1.0)
-        self.dur_spin.setValue(15.0)
+        default_dur = min(15.0, max_limit) if self.total_duration > 0 else 15.0
+        self.dur_spin.setValue(default_dur)
         dur_vbox.addWidget(dur_label)
         dur_vbox.addWidget(self.dur_spin)
         time_layout.addLayout(dur_vbox)

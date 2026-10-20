@@ -3,7 +3,7 @@ Central Action Dispatcher: Connects UI actions to specific core operations.
 Includes image, video, audio, PDF, document, spreadsheet, and Speech-to-Text transcription operations.
 """
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 from shiftdrop.core.image_ops import (
     convert_image, compress_image, crop_or_resize_image, images_to_pdf
 )
@@ -193,7 +193,8 @@ def execute_action(
     action_id: str,
     file_paths: list[Path | str],
     params: Optional[dict[str, Any]] = None,
-    output_dir: Optional[Path | str] = None
+    output_dir: Optional[Path | str] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> list[Path]:
     """
     Executes the specified conversion/editing action on the provided files.
@@ -202,19 +203,41 @@ def execute_action(
     params = params or {}
     results: list[Path] = []
     paths = [Path(p) for p in file_paths]
+    total_files = len(paths)
+
+    def _make_progress_cb(index: int, total: int):
+        def _cb(pct: int, msg: str):
+            if progress_callback:
+                if total <= 1:
+                    progress_callback(pct, msg)
+                else:
+                    base = int((index / total) * 100)
+                    step = int(pct / total)
+                    progress_callback(min(99, base + step), f"[{index+1}/{total}] {msg}")
+        return _cb
+
+    # Helper for simple file-level progression
+    def _report_file_step(index: int, filename: str):
+        if progress_callback and total_files > 1:
+            pct = int((index / total_files) * 100)
+            progress_callback(pct, f"Procesando {filename} ({index+1}/{total_files})...")
 
     # --- IMAGE ACTIONS ---
     if action_id == "img_to_webp":
-        for p in paths:
+        for i, p in enumerate(paths):
+            _report_file_step(i, p.name)
             results.append(convert_image(p, "webp", output_dir=output_dir, quality=params.get("quality", 85)))
     elif action_id == "img_to_png":
-        for p in paths:
+        for i, p in enumerate(paths):
+            _report_file_step(i, p.name)
             results.append(convert_image(p, "png", output_dir=output_dir))
     elif action_id == "img_to_jpg":
-        for p in paths:
+        for i, p in enumerate(paths):
+            _report_file_step(i, p.name)
             results.append(convert_image(p, "jpg", output_dir=output_dir, quality=params.get("quality", 88)))
     elif action_id == "img_to_ico":
-        for p in paths:
+        for i, p in enumerate(paths):
+            _report_file_step(i, p.name)
             results.append(convert_image(p, "ico", output_dir=output_dir))
     elif action_id == "img_to_pdf":
         if len(paths) > 1:
@@ -222,10 +245,12 @@ def execute_action(
         else:
             results.append(convert_image(paths[0], "pdf", output_dir=output_dir))
     elif action_id == "img_compress":
-        for p in paths:
+        for i, p in enumerate(paths):
+            _report_file_step(i, p.name)
             results.append(compress_image(p, quality=params.get("quality", 65), output_dir=output_dir))
     elif action_id == "img_crop_resize":
-        for p in paths:
+        for i, p in enumerate(paths):
+            _report_file_step(i, p.name)
             results.append(crop_or_resize_image(
                 p,
                 aspect_ratio=params.get("aspect_ratio"),
@@ -234,31 +259,35 @@ def execute_action(
                 output_dir=output_dir
             ))
     elif action_id == "img_to_bmp":
-        for p in paths:
+        for i, p in enumerate(paths):
+            _report_file_step(i, p.name)
             results.append(convert_image(p, "bmp", output_dir=output_dir))
     elif action_id == "img_to_tiff":
-        for p in paths:
+        for i, p in enumerate(paths):
+            _report_file_step(i, p.name)
             results.append(convert_image(p, "tiff", output_dir=output_dir))
     elif action_id == "img_to_gif":
-        for p in paths:
+        for i, p in enumerate(paths):
+            _report_file_step(i, p.name)
             results.append(convert_image(p, "gif", output_dir=output_dir))
 
     # --- VIDEO ACTIONS ---
     elif action_id == "vid_to_mp4":
-        for p in paths:
-            results.append(convert_video(p, "mp4", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_video(p, "mp4", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "vid_to_webm":
-        for p in paths:
-            results.append(convert_video(p, "webm", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_video(p, "webm", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "vid_to_gif":
-        for p in paths:
+        for i, p in enumerate(paths):
             results.append(video_to_gif(
                 p,
                 fps=params.get("fps", 15),
                 scale_width=params.get("width", 480),
                 start_sec=params.get("start_sec", 0.0),
                 duration_sec=params.get("duration_sec", 10.0),
-                output_dir=output_dir
+                output_dir=output_dir,
+                progress_callback=_make_progress_cb(i, total_files)
             ))
     elif action_id == "vid_extract_mp3":
         for p in paths:
@@ -267,22 +296,24 @@ def execute_action(
         for p in paths:
             results.append(extract_audio_from_video(p, "wav", output_dir=output_dir))
     elif action_id == "vid_compress":
-        for p in paths:
-            results.append(compress_video(p, crf=params.get("crf", 28), output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(compress_video(p, crf=params.get("crf", 28), output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "vid_trim":
-        for p in paths:
+        for i, p in enumerate(paths):
             results.append(trim_video(
                 p,
                 start_sec=params.get("start_sec", 0.0),
                 duration_sec=params.get("duration_sec"),
                 end_sec=params.get("end_sec"),
-                output_dir=output_dir
+                output_dir=output_dir,
+                progress_callback=_make_progress_cb(i, total_files)
             ))
     elif action_id == "vid_to_mkv":
-        for p in paths:
-            results.append(convert_video(p, "mkv", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_video(p, "mkv", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "vid_to_mov":
-        for p in paths:
+        for i, p in enumerate(paths):
+            results.append(convert_video(p, "mov", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
             results.append(convert_video(p, "mov", output_dir=output_dir))
     elif action_id == "vid_to_avi":
         for p in paths:
@@ -460,5 +491,8 @@ def execute_action(
 
     else:
         raise ValueError(f"Acción no reconocida: {action_id}")
+
+    if progress_callback:
+        progress_callback(100, "¡Listo!")
 
     return results
