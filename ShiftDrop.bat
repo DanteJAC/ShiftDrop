@@ -16,13 +16,6 @@ if exist "%~dp0dist\ShiftDrop\ShiftDrop.exe" (
     exit /b 0
 )
 
-if exist "%~dp0dist\ShiftDrop.exe" (
-    echo Iniciando ShiftDrop.exe...
-    start "" /D "%~dp0dist" "%~dp0dist\ShiftDrop.exe"
-    echo ShiftDrop esta activo en segundo plano y en la bandeja del sistema.
-    exit /b 0
-)
-
 echo Iniciando entorno y servicios de escucha con Python...
 uv run python -m shiftdrop.main
 if %ERRORLEVEL% NEQ 0 (
