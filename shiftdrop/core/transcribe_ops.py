@@ -124,6 +124,25 @@ def transcribe_audio_segments(
                 "text": text
             })
 
+    # Fallback: If VAD filter yielded 0 segments (common in songs, music videos,
+    # or audio with background tracks where Silero VAD aggressively discards speech/vocals),
+    # perform a fallback pass without VAD so voice/lyrics are reliably captured.
+    if not segments and transcribe_kwargs.get("vad_filter"):
+        fallback_kwargs = transcribe_kwargs.copy()
+        fallback_kwargs["vad_filter"] = False
+        fallback_kwargs.pop("vad_parameters", None)
+        seg_gen_fb, info_fb = model.transcribe(audio_pcm, **fallback_kwargs)
+        for s in seg_gen_fb:
+            text = s.text.strip()
+            if text:
+                segments.append({
+                    "start": s.start,
+                    "end": s.end,
+                    "text": text
+                })
+        if segments:
+            info = info_fb
+
     return info.language, duration, segments
 
 

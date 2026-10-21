@@ -148,6 +148,19 @@ class TestTranscribeAndAudio(unittest.TestCase):
             extract_audio_from_video(vid_no_audio, audio_format="mp3")
         self.assertIn("no contiene ninguna pista de audio", str(ctx2.exception))
 
+    def test_transcribe_fallback_when_vad_filters_music(self):
+        # Generate an audio with speech or music tone
+        test_tone = self.dir_path / "music_tone.wav"
+        run_ffmpeg([
+            "-f", "lavfi",
+            "-i", "sine=frequency=880:duration=2",
+            str(test_tone)
+        ])
+        # Verify transcribe_audio_segments completes without error using fallback if needed
+        lang, duration, segments = transcribe_audio_segments(test_tone)
+        self.assertIsInstance(lang, str)
+        self.assertGreater(duration, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
