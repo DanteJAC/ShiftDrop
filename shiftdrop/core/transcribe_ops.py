@@ -28,9 +28,14 @@ def _decode_audio_with_ffmpeg(input_path: Path | str) -> np.ndarray:
     Extracts 16kHz mono float32 PCM samples from any audio/video container via FFmpeg.
     Bypasses PyAV library completely, preventing version mismatches.
     """
-    from shiftdrop.core.ffmpeg_helper import get_ffmpeg_executable
+    from shiftdrop.core.ffmpeg_helper import get_ffmpeg_executable, has_audio_stream
 
-    input_path = str(Path(input_path).resolve())
+    input_path_obj = Path(input_path).resolve()
+    input_path = str(input_path_obj)
+
+    if not has_audio_stream(input_path_obj):
+        raise ValueError(f"El archivo '{input_path_obj.name}' no contiene ninguna pista de audio para transcribir.")
+
     exe = get_ffmpeg_executable()
 
     cmd = [
@@ -56,11 +61,17 @@ def _decode_audio_with_ffmpeg(input_path: Path | str) -> np.ndarray:
         cmd,
         capture_output=True,
         startupinfo=startupinfo,
-        check=True
+        check=False
     )
 
+    if result.returncode != 0:
+        err = result.stderr.decode("utf-8", errors="replace").strip() if result.stderr else ""
+        if "does not contain any stream" in err or "matches no streams" in err:
+            raise ValueError(f"El archivo '{input_path_obj.name}' no contiene ninguna pista de audio para transcribir.")
+        raise RuntimeError(f"Error al decodificar audio con FFmpeg: {err[:150] if err else f'código {result.returncode}'}")
+
     if not result.stdout:
-        return np.zeros(0, dtype=np.float32)
+        raise ValueError(f"El archivo '{input_path_obj.name}' no contiene datos de audio audibles.")
 
     return np.frombuffer(result.stdout, dtype=np.float32)
 

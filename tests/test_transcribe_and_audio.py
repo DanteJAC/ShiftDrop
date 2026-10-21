@@ -125,6 +125,29 @@ class TestTranscribeAndAudio(unittest.TestCase):
         res_docx = execute_action("aud_transcribe_docx", [self.sample_wav])
         self.assertTrue(res_docx[0].exists())
 
+    def test_video_without_audio_stream_raises_clean_error(self):
+        from shiftdrop.core.ffmpeg_helper import has_audio_stream
+        from shiftdrop.core.video_ops import extract_audio_from_video
+
+        # Create video without audio
+        vid_no_audio = self.dir_path / "silent_video.mp4"
+        run_ffmpeg([
+            "-f", "lavfi",
+            "-i", "testsrc=duration=2:size=160x120:rate=10",
+            "-c:v", "libx264",
+            str(vid_no_audio)
+        ])
+
+        self.assertFalse(has_audio_stream(vid_no_audio))
+
+        with self.assertRaises(ValueError) as ctx:
+            transcribe_to_txt(vid_no_audio)
+        self.assertIn("no contiene ninguna pista de audio", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx2:
+            extract_audio_from_video(vid_no_audio, audio_format="mp3")
+        self.assertIn("no contiene ninguna pista de audio", str(ctx2.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

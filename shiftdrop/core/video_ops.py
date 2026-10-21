@@ -100,7 +100,12 @@ def extract_audio_from_video(
     """
     Extracts the audio track from a video file.
     """
+    from shiftdrop.core.ffmpeg_helper import has_audio_stream
+
     input_path = Path(input_path)
+    if not has_audio_stream(input_path):
+        raise ValueError(f"El video '{input_path.name}' no contiene ninguna pista de audio para extraer.")
+
     audio_format = audio_format.lower().lstrip(".")
     out_dir = Path(output_dir) if output_dir else input_path.parent
     base_target = out_dir / f"{input_path.stem}.{audio_format}"

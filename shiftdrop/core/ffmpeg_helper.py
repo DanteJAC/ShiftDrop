@@ -111,6 +111,33 @@ def get_media_duration(file_path: Path | str) -> float:
     return 0.0
 
 
+def has_audio_stream(file_path: Path | str) -> bool:
+    """
+    Returns True if the media file contains at least one audio stream, False otherwise.
+    """
+    try:
+        exe = get_ffmpeg_executable()
+        startupinfo = None
+        if hasattr(subprocess, "STARTUPINFO"):
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+
+        cmd = [exe, "-hide_banner", "-i", str(Path(file_path).resolve())]
+        res = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            errors="ignore",
+            startupinfo=startupinfo,
+            timeout=8
+        )
+        return bool(re.search(r"Stream #\d+:\d+.*:\s*Audio:", res.stderr))
+    except Exception:
+        return False
+
+
 def run_ffmpeg(
     args: list[str],
     timeout: Optional[int] = None,
