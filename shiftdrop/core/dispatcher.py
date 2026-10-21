@@ -395,7 +395,7 @@ def execute_action(
                 p,
                 output_dir=output_dir,
                 include_timestamps=params.get("timestamps", True),
-                model_size=params.get("model_size", "small"),
+                model_size=params.get("model_size", "large-v3-turbo"),
                 language=params.get("language")
             ))
     elif action_id in ("aud_transcribe_srt", "vid_transcribe_srt"):
@@ -403,7 +403,7 @@ def execute_action(
             results.append(transcribe_to_srt(
                 p,
                 output_dir=output_dir,
-                model_size=params.get("model_size", "small"),
+                model_size=params.get("model_size", "large-v3-turbo"),
                 language=params.get("language")
             ))
     elif action_id in ("aud_transcribe_docx", "vid_transcribe_docx"):
@@ -411,7 +411,7 @@ def execute_action(
             results.append(transcribe_to_docx(
                 p,
                 output_dir=output_dir,
-                model_size=params.get("model_size", "small"),
+                model_size=params.get("model_size", "large-v3-turbo"),
                 language=params.get("language")
             ))
 

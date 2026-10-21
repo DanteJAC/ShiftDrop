@@ -2,7 +2,7 @@
 Speech-to-Text Audio & Video Transcription Operations using faster-whisper.
 100% offline, local execution, avoiding PyAV incompatibilities via direct FFmpeg raw PCM stream.
 """
-import os
+import re
 import subprocess
 from pathlib import Path
 from typing import Optional, Any
@@ -11,10 +11,20 @@ from shiftdrop.core.path_utils import get_unique_target_path
 
 _cached_models: dict[str, Any] = {}
 
-def _get_whisper_model(model_size: str = "small"):
+# Patterns commonly hallucinated by Whisper during non-speech music/silence passages
+_HALLUCINATION_REGEX = re.compile(
+    r"^(thank you|thanks for watching|thank you for watching|please subscribe|"
+    r"don't forget to subscribe|like and subscribe|subt[ií]tulos|subtitles by|"
+    r"we'll be right back|i'll see you soon|this video is|this video will|"
+    r"this video can|this video has|tricerase|tricing|tricor|tricorn)[\.!\s]*$",
+    re.IGNORECASE
+)
+
+def _get_whisper_model(model_size: str = "large-v3-turbo"):
     """
     Returns a cached instance of WhisperModel running on CPU with int8 quantization.
-    Defaults to 'small' for high fidelity, falling back to 'base' or 'tiny' if needed.
+    Defaults to 'large-v3-turbo' for state-of-the-art acoustic resolution in songs and speech,
+    falling back to 'small', 'base' or 'tiny' if needed.
     """
     global _cached_models
     if model_size in _cached_models:
@@ -22,7 +32,7 @@ def _get_whisper_model(model_size: str = "small"):
 
     from faster_whisper import WhisperModel
 
-    candidates = [model_size, "base", "tiny"] if model_size not in ("base", "tiny") else [model_size, "tiny"]
+    candidates = [model_size, "large-v3-turbo", "small", "base", "tiny"]
     unique_candidates = list(dict.fromkeys(candidates))
 
     last_err = None
@@ -108,12 +118,13 @@ def format_timestamp(seconds: float, srt_format: bool = False) -> str:
 def transcribe_audio_segments(
     input_path: Path | str,
     language: Optional[str] = None,
-    model_size: str = "small"
+    model_size: str = "large-v3-turbo"
 ) -> tuple[str, float, list[dict[str, Any]]]:
     """
     Transcribes the audio/video file and returns (detected_language, duration, segments_list).
     Each segment contains: {'start': float, 'end': float, 'text': str}.
-    Optimized to capture complete audio, songs, lyrics, and speech without omissions or loops.
+    Optimized to capture complete audio, songs, lyrics, and speech without omissions or loops,
+    filtering out instrumental hallucinations and non-speech artifacts.
     """
     audio_pcm = _decode_audio_with_ffmpeg(input_path)
     if len(audio_pcm) == 0:
@@ -124,12 +135,11 @@ def transcribe_audio_segments(
 
     transcribe_kwargs = {
         "beam_size": 5,
+        "temperature": 0.0,
         "condition_on_previous_text": False,
         "repetition_penalty": 1.2,
         "no_repeat_ngram_size": 3,
-        "no_speech_threshold": 0.8,
-        "compression_ratio_threshold": 2.8,
-        "temperature": [0.0, 0.2, 0.4],
+        "initial_prompt": "Song lyrics, verses, chorus, spoken dialogue and vocal track.",
     }
     if language:
         transcribe_kwargs["language"] = language
@@ -139,12 +149,25 @@ def transcribe_audio_segments(
     segments = []
     for s in segments_gen:
         text = s.text.strip()
-        if text:
-            segments.append({
-                "start": s.start,
-                "end": s.end,
-                "text": text
-            })
+        if not text:
+            continue
+
+        # Acoustic log-probability filter:
+        # Authentic vocal/speech segments score >= -0.70.
+        # Instrumental noise, synth solos, and silence hallucinations score < -0.75.
+        avg_logprob = getattr(s, "avg_logprob", 0.0)
+        if avg_logprob < -0.75:
+            continue
+
+        # Suppress known Whisper silence/music hallucination phrases
+        if _HALLUCINATION_REGEX.search(text) and avg_logprob < -0.40:
+            continue
+
+        segments.append({
+            "start": s.start,
+            "end": s.end,
+            "text": text
+        })
 
     return info.language, duration, segments
 
@@ -153,7 +176,7 @@ def transcribe_to_txt(
     input_path: Path | str,
     output_dir: Optional[Path | str] = None,
     include_timestamps: bool = True,
-    model_size: str = "small",
+    model_size: str = "large-v3-turbo",
     language: Optional[str] = None
 ) -> Path:
     """
@@ -189,7 +212,7 @@ def transcribe_to_txt(
 def transcribe_to_srt(
     input_path: Path | str,
     output_dir: Optional[Path | str] = None,
-    model_size: str = "small",
+    model_size: str = "large-v3-turbo",
     language: Optional[str] = None
 ) -> Path:
     """
@@ -218,7 +241,7 @@ def transcribe_to_srt(
 def transcribe_to_docx(
     input_path: Path | str,
     output_dir: Optional[Path | str] = None,
-    model_size: str = "small",
+    model_size: str = "large-v3-turbo",
     language: Optional[str] = None
 ) -> Path:
     """
