@@ -5,7 +5,7 @@
 [![Engine](https://img.shields.io/badge/Engine-FFmpeg%207.1-red?logo=ffmpeg&logoColor=white)](https://ffmpeg.org/)
 [![AI Transcription](https://img.shields.io/badge/AI%20STT-faster--whisper-purple?logo=openai&logoColor=white)](https://github.com/SYSTRAN/faster-whisper)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
-[![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%26%20Local-success)](https://github.com/DanteJac/ShiftDrop)
+[![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%26%20Local-success)](https://github.com/DanteJAC/ShiftDrop)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > Convierte, recorta, comprime, transcribe y combina archivos al instante en Windows simplemente arrastrándolos mientras mantienes presionada la tecla **Shift**. Sin subir datos a la nube, sin publicidad y con ejecución 100% en segundo plano.
@@ -150,7 +150,7 @@ ShiftDrop/
 
 ### 1. Clonar el Repositorio
 ```powershell
-git clone https://github.com/DanteJac/ShiftDrop.git
+git clone https://github.com/DanteJAC/ShiftDrop.git
 cd ShiftDrop
 ```
 
@@ -205,9 +205,9 @@ dist/ShiftDrop/ShiftDrop.exe
 
 Desarrollado y mantenido con dedicación por **DanteJac**.
 
-- **GitHub:** [@DanteJac](https://github.com/DanteJac)
+- **GitHub:** [@DanteJAC](https://github.com/DanteJAC)
 - **Correo Electrónico:** [jacobo.bustos.22@gmail.com](mailto:jacobo.bustos.22@gmail.com)
-- **Repositorio:** [https://github.com/DanteJac/ShiftDrop](https://github.com/DanteJac/ShiftDrop)
+- **Repositorio:** [https://github.com/DanteJAC/ShiftDrop](https://github.com/DanteJAC/ShiftDrop)
 
 ---
 
