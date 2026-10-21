@@ -9,18 +9,34 @@ from typing import Optional, Any
 import numpy as np
 from shiftdrop.core.path_utils import get_unique_target_path
 
-_cached_model = None
+_cached_models: dict[str, Any] = {}
 
-def _get_whisper_model(model_size: str = "tiny"):
-    """Returns a cached instance of WhisperModel running on CPU with int8 quantization."""
-    global _cached_model
-    if _cached_model is not None:
-        return _cached_model
+def _get_whisper_model(model_size: str = "small"):
+    """
+    Returns a cached instance of WhisperModel running on CPU with int8 quantization.
+    Defaults to 'small' for high fidelity, falling back to 'base' or 'tiny' if needed.
+    """
+    global _cached_models
+    if model_size in _cached_models:
+        return _cached_models[model_size]
 
     from faster_whisper import WhisperModel
-    # device="cpu", compute_type="int8" ensures fast offline CPU inference
-    _cached_model = WhisperModel(model_size, device="cpu", compute_type="int8")
-    return _cached_model
+
+    candidates = [model_size, "base", "tiny"] if model_size not in ("base", "tiny") else [model_size, "tiny"]
+    unique_candidates = list(dict.fromkeys(candidates))
+
+    last_err = None
+    for cand in unique_candidates:
+        try:
+            model = WhisperModel(cand, device="cpu", compute_type="int8")
+            _cached_models[cand] = model
+            _cached_models[model_size] = model
+            return model
+        except Exception as e:
+            last_err = e
+            continue
+
+    raise RuntimeError(f"No se pudo inicializar el modelo Whisper: {last_err}")
 
 
 def _decode_audio_with_ffmpeg(input_path: Path | str) -> np.ndarray:
@@ -91,23 +107,29 @@ def format_timestamp(seconds: float, srt_format: bool = False) -> str:
 
 def transcribe_audio_segments(
     input_path: Path | str,
-    language: Optional[str] = None
+    language: Optional[str] = None,
+    model_size: str = "small"
 ) -> tuple[str, float, list[dict[str, Any]]]:
     """
     Transcribes the audio/video file and returns (detected_language, duration, segments_list).
     Each segment contains: {'start': float, 'end': float, 'text': str}.
+    Optimized to capture complete audio, songs, lyrics, and speech without omissions or loops.
     """
     audio_pcm = _decode_audio_with_ffmpeg(input_path)
     if len(audio_pcm) == 0:
         return "es", 0.0, []
 
     duration = len(audio_pcm) / 16000.0
-    model = _get_whisper_model()
+    model = _get_whisper_model(model_size)
 
     transcribe_kwargs = {
         "beam_size": 5,
-        "vad_filter": True,
-        "vad_parameters": dict(min_silence_duration_ms=500),
+        "condition_on_previous_text": False,
+        "repetition_penalty": 1.2,
+        "no_repeat_ngram_size": 3,
+        "no_speech_threshold": 0.8,
+        "compression_ratio_threshold": 2.8,
+        "temperature": [0.0, 0.2, 0.4],
     }
     if language:
         transcribe_kwargs["language"] = language
@@ -124,32 +146,15 @@ def transcribe_audio_segments(
                 "text": text
             })
 
-    # Fallback: If VAD filter yielded 0 segments (common in songs, music videos,
-    # or audio with background tracks where Silero VAD aggressively discards speech/vocals),
-    # perform a fallback pass without VAD so voice/lyrics are reliably captured.
-    if not segments and transcribe_kwargs.get("vad_filter"):
-        fallback_kwargs = transcribe_kwargs.copy()
-        fallback_kwargs["vad_filter"] = False
-        fallback_kwargs.pop("vad_parameters", None)
-        seg_gen_fb, info_fb = model.transcribe(audio_pcm, **fallback_kwargs)
-        for s in seg_gen_fb:
-            text = s.text.strip()
-            if text:
-                segments.append({
-                    "start": s.start,
-                    "end": s.end,
-                    "text": text
-                })
-        if segments:
-            info = info_fb
-
     return info.language, duration, segments
 
 
 def transcribe_to_txt(
     input_path: Path | str,
     output_dir: Optional[Path | str] = None,
-    include_timestamps: bool = True
+    include_timestamps: bool = True,
+    model_size: str = "small",
+    language: Optional[str] = None
 ) -> Path:
     """
     Transcribes audio/video to a clean .txt file with optional timestamps.
@@ -158,7 +163,7 @@ def transcribe_to_txt(
     out_dir = Path(output_dir) if output_dir else input_path.parent
     target_txt = get_unique_target_path(out_dir / f"{input_path.stem}_transcripcion.txt")
 
-    lang, duration, segments = transcribe_audio_segments(input_path)
+    lang, duration, segments = transcribe_audio_segments(input_path, language=language, model_size=model_size)
 
     lines = [
         f"--- Transcripción ShiftDrop: {input_path.name} ---",
@@ -183,7 +188,9 @@ def transcribe_to_txt(
 
 def transcribe_to_srt(
     input_path: Path | str,
-    output_dir: Optional[Path | str] = None
+    output_dir: Optional[Path | str] = None,
+    model_size: str = "small",
+    language: Optional[str] = None
 ) -> Path:
     """
     Transcribes audio/video to standard SubRip (.srt) subtitle format.
@@ -192,7 +199,7 @@ def transcribe_to_srt(
     out_dir = Path(output_dir) if output_dir else input_path.parent
     target_srt = get_unique_target_path(out_dir / f"{input_path.stem}_subtitulos.srt")
 
-    lang, duration, segments = transcribe_audio_segments(input_path)
+    lang, duration, segments = transcribe_audio_segments(input_path, language=language, model_size=model_size)
 
     srt_blocks = []
     if not segments:
@@ -210,7 +217,9 @@ def transcribe_to_srt(
 
 def transcribe_to_docx(
     input_path: Path | str,
-    output_dir: Optional[Path | str] = None
+    output_dir: Optional[Path | str] = None,
+    model_size: str = "small",
+    language: Optional[str] = None
 ) -> Path:
     """
     Transcribes audio/video to a formatted Word (.docx) document with styling and timestamps.
@@ -222,7 +231,7 @@ def transcribe_to_docx(
     out_dir = Path(output_dir) if output_dir else input_path.parent
     target_docx = get_unique_target_path(out_dir / f"{input_path.stem}_transcripcion.docx")
 
-    lang, duration, segments = transcribe_audio_segments(input_path)
+    lang, duration, segments = transcribe_audio_segments(input_path, language=language, model_size=model_size)
 
     doc = docx.Document()
 
