@@ -6,6 +6,7 @@
 [![AI Transcription](https://img.shields.io/badge/AI%20STT-faster--whisper-purple?logo=openai&logoColor=white)](https://github.com/SYSTRAN/faster-whisper)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%26%20Local-success)](https://github.com/DanteJAC/ShiftDrop)
+[![AI Pair Programming](https://img.shields.io/badge/Developed%20with-Antigravity%20(Google%20DeepMind)-orange?logo=google&logoColor=white)](https://deepmind.google/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > Convierte, recorta, comprime, transcribe y combina archivos al instante en Windows simplemente arrastrándolos mientras mantienes presionada la tecla **Shift**. Sin subir datos a la nube, sin publicidad y con ejecución 100% en segundo plano.
@@ -23,6 +24,7 @@
 - [🚀 Instalación y Puesta en Marcha](#-instalación-y-puesta-en-marcha)
 - [🧪 Pruebas Automatizadas](#-pruebas-automatizadas)
 - [🛠️ Compilación y Empaquetado (PyInstaller)](#️-compilación-y-empaquetado-pyinstaller)
+- [🤝 Co-creación y Desarrollo con IA](#-co-creación-y-desarrollo-con-ia)
 - [👤 Autor y Contacto](#-autor-y-contacto)
 - [📄 Licencia](#-licencia)
 
@@ -198,6 +200,20 @@ El ejecutable optimizado se generará en:
 ```
 dist/ShiftDrop/ShiftDrop.exe
 ```
+
+---
+
+## 🤝 Co-creación y Desarrollo con IA
+
+Este proyecto fue desarrollado bajo una metodología avanzada de **Pair Programming Humano + Inteligencia Artificial**:
+
+- **💡 Concepción, Dirección de Producto y Pruebas:** [DanteJac](https://github.com/DanteJAC)
+- **🤖 Copiloto de Ingeniería y Arquitectura:** [Antigravity](https://deepmind.google/) (Google DeepMind)
+  - Diseño del sistema de coordenadas polares y renderizado vectorial continuo con `QPainter`.
+  - Integración de bajo nivel con la API de Windows (`user32.dll`, interfaces COM `IShellWindows` y preservación OLE `CopyAction`).
+  - Optimización de procesos concurrentes en segundo plano (`QThreadPool`, `QRunnable` y drenado asíncrono de pipes de FFmpeg).
+  - Implementación del pipeline de inferencia local con redes neuronales `faster-whisper` (CTranslate2 INT8).
+  - Creación de la suite automatizada de más de 118 pruebas unitarias y empaquetado autónomo con PyInstaller.
 
 ---
 
