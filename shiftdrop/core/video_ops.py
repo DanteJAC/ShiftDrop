@@ -95,7 +95,8 @@ def extract_audio_from_video(
     input_path: Path | str,
     audio_format: str = "mp3",
     bitrate: str = "320k",
-    output_dir: Optional[Path | str] = None
+    output_dir: Optional[Path | str] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> Path:
     """
     Extracts the audio track from a video file.
@@ -129,7 +130,8 @@ def extract_audio_from_video(
         args.extend(["-c:a", "copy"])
 
     args.append(str(target_path))
-    run_ffmpeg(args)
+    total_dur = get_media_duration(input_path)
+    run_ffmpeg(args, total_duration=total_dur, progress_callback=progress_callback)
     return target_path
 
 

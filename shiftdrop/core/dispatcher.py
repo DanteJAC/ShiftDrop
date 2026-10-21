@@ -219,10 +219,14 @@ def execute_action(
         return _cb
 
     # Helper for simple file-level progression
-    def _report_file_step(index: int, filename: str):
-        if progress_callback and total_files > 1:
-            pct = int((index / total_files) * 100)
-            progress_callback(pct, f"Procesando {filename} ({index+1}/{total_files})...")
+    def _report_file_step(index: int, filename: str, custom_pct: Optional[int] = None):
+        if progress_callback:
+            if total_files > 1:
+                pct = int((index / total_files) * 100)
+                progress_callback(pct, f"Procesando {filename} ({index+1}/{total_files})...")
+            else:
+                pct = custom_pct if custom_pct is not None else 35
+                progress_callback(pct, f"Procesando {filename}...")
 
     # --- IMAGE ACTIONS ---
     if action_id == "img_to_webp":
@@ -306,11 +310,11 @@ def execute_action(
                 progress_callback=_make_progress_cb(i, total_files)
             ))
     elif action_id == "vid_extract_mp3":
-        for p in paths:
-            results.append(extract_audio_from_video(p, "mp3", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(extract_audio_from_video(p, "mp3", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "vid_extract_wav":
-        for p in paths:
-            results.append(extract_audio_from_video(p, "wav", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(extract_audio_from_video(p, "wav", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "vid_compress":
         for i, p in enumerate(paths):
             results.append(compress_video(p, crf=params.get("crf", 28), output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
@@ -344,35 +348,35 @@ def execute_action(
 
     # --- AUDIO ACTIONS ---
     elif action_id == "aud_to_mp3":
-        for p in paths:
-            results.append(convert_audio(p, "mp3", bitrate=params.get("bitrate", "320k"), output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_audio(p, "mp3", bitrate=params.get("bitrate", "320k"), output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "aud_to_wav":
-        for p in paths:
-            results.append(convert_audio(p, "wav", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_audio(p, "wav", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "aud_to_flac":
-        for p in paths:
-            results.append(convert_audio(p, "flac", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_audio(p, "flac", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id in ("aud_to_m4a", "aud_to_aac"):
-        for p in paths:
-            results.append(convert_audio(p, "m4a", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_audio(p, "m4a", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "aud_to_ogg":
-        for p in paths:
-            results.append(convert_audio(p, "ogg", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_audio(p, "ogg", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "aud_to_opus":
-        for p in paths:
-            results.append(convert_audio(p, "opus", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_audio(p, "opus", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "aud_to_aiff":
-        for p in paths:
-            results.append(convert_audio(p, "aiff", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_audio(p, "aiff", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "aud_to_wma":
-        for p in paths:
-            results.append(convert_audio(p, "wma", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_audio(p, "wma", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "aud_to_ac3":
-        for p in paths:
-            results.append(convert_audio(p, "ac3", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_audio(p, "ac3", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "aud_to_amr":
-        for p in paths:
-            results.append(convert_audio(p, "amr", output_dir=output_dir))
+        for i, p in enumerate(paths):
+            results.append(convert_audio(p, "amr", output_dir=output_dir, progress_callback=_make_progress_cb(i, total_files)))
     elif action_id == "aud_normalize":
         for p in paths:
             results.append(normalize_audio(p, output_dir=output_dir))
@@ -390,29 +394,32 @@ def execute_action(
 
     # --- SPEECH-TO-TEXT TRANSCRIPTION ACTIONS ---
     elif action_id in ("aud_transcribe_txt", "vid_transcribe_txt"):
-        for p in paths:
+        for i, p in enumerate(paths):
             results.append(transcribe_to_txt(
                 p,
                 output_dir=output_dir,
                 include_timestamps=params.get("timestamps", True),
                 model_size=params.get("model_size", "large-v3-turbo"),
-                language=params.get("language")
+                language=params.get("language"),
+                progress_callback=_make_progress_cb(i, total_files)
             ))
     elif action_id in ("aud_transcribe_srt", "vid_transcribe_srt"):
-        for p in paths:
+        for i, p in enumerate(paths):
             results.append(transcribe_to_srt(
                 p,
                 output_dir=output_dir,
                 model_size=params.get("model_size", "large-v3-turbo"),
-                language=params.get("language")
+                language=params.get("language"),
+                progress_callback=_make_progress_cb(i, total_files)
             ))
     elif action_id in ("aud_transcribe_docx", "vid_transcribe_docx"):
-        for p in paths:
+        for i, p in enumerate(paths):
             results.append(transcribe_to_docx(
                 p,
                 output_dir=output_dir,
                 model_size=params.get("model_size", "large-v3-turbo"),
-                language=params.get("language")
+                language=params.get("language"),
+                progress_callback=_make_progress_cb(i, total_files)
             ))
 
     # --- PDF ACTIONS ---

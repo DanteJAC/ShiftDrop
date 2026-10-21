@@ -5,7 +5,7 @@ Speech-to-Text Audio & Video Transcription Operations using faster-whisper.
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Callable
 import numpy as np
 from shiftdrop.core.path_utils import get_unique_target_path
 
@@ -118,20 +118,29 @@ def format_timestamp(seconds: float, srt_format: bool = False) -> str:
 def transcribe_audio_segments(
     input_path: Path | str,
     language: Optional[str] = None,
-    model_size: str = "large-v3-turbo"
+    model_size: str = "large-v3-turbo",
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> tuple[str, float, list[dict[str, Any]]]:
     """
     Transcribes the audio/video file and returns (detected_language, duration, segments_list).
     Each segment contains: {'start': float, 'end': float, 'text': str}.
     Optimized to capture complete audio, songs, lyrics, and speech without omissions or loops,
-    filtering out instrumental hallucinations and non-speech artifacts.
+    filtering out instrumental hallucinations and non-speech artifacts, reporting real-time progress.
     """
+    if progress_callback:
+        progress_callback(8, "Extrayendo pista de audio...")
+
     audio_pcm = _decode_audio_with_ffmpeg(input_path)
     if len(audio_pcm) == 0:
         return "es", 0.0, []
 
     duration = len(audio_pcm) / 16000.0
+    if progress_callback:
+        progress_callback(16, f"Cargando modelo de IA ({format_timestamp(duration)})...")
+
     model = _get_whisper_model(model_size)
+    if progress_callback:
+        progress_callback(22, "Transcribiendo voz y audio...")
 
     transcribe_kwargs = {
         "beam_size": 5,
@@ -169,6 +178,15 @@ def transcribe_audio_segments(
             "text": text
         })
 
+        if progress_callback and duration > 0:
+            # Scale progress smoothly from 22% to 95% based on transcribed timestamp
+            progress_ratio = min(1.0, max(0.0, s.end / duration))
+            pct = int(22 + progress_ratio * 73)
+            progress_callback(pct, f"Transcribiendo ({format_timestamp(s.end)} / {format_timestamp(duration)})...")
+
+    if progress_callback:
+        progress_callback(97, "Finalizando transcripción...")
+
     return info.language, duration, segments
 
 
@@ -177,7 +195,8 @@ def transcribe_to_txt(
     output_dir: Optional[Path | str] = None,
     include_timestamps: bool = True,
     model_size: str = "large-v3-turbo",
-    language: Optional[str] = None
+    language: Optional[str] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> Path:
     """
     Transcribes audio/video to a clean .txt file with optional timestamps.
@@ -186,7 +205,12 @@ def transcribe_to_txt(
     out_dir = Path(output_dir) if output_dir else input_path.parent
     target_txt = get_unique_target_path(out_dir / f"{input_path.stem}_transcripcion.txt")
 
-    lang, duration, segments = transcribe_audio_segments(input_path, language=language, model_size=model_size)
+    lang, duration, segments = transcribe_audio_segments(
+        input_path, language=language, model_size=model_size, progress_callback=progress_callback
+    )
+
+    if progress_callback:
+        progress_callback(98, "Guardando archivo .txt...")
 
     lines = [
         f"--- Transcripción ShiftDrop: {input_path.name} ---",
@@ -213,7 +237,8 @@ def transcribe_to_srt(
     input_path: Path | str,
     output_dir: Optional[Path | str] = None,
     model_size: str = "large-v3-turbo",
-    language: Optional[str] = None
+    language: Optional[str] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> Path:
     """
     Transcribes audio/video to standard SubRip (.srt) subtitle format.
@@ -222,7 +247,12 @@ def transcribe_to_srt(
     out_dir = Path(output_dir) if output_dir else input_path.parent
     target_srt = get_unique_target_path(out_dir / f"{input_path.stem}_subtitulos.srt")
 
-    lang, duration, segments = transcribe_audio_segments(input_path, language=language, model_size=model_size)
+    lang, duration, segments = transcribe_audio_segments(
+        input_path, language=language, model_size=model_size, progress_callback=progress_callback
+    )
+
+    if progress_callback:
+        progress_callback(98, "Guardando subtítulos .srt...")
 
     srt_blocks = []
     if not segments:
@@ -242,7 +272,8 @@ def transcribe_to_docx(
     input_path: Path | str,
     output_dir: Optional[Path | str] = None,
     model_size: str = "large-v3-turbo",
-    language: Optional[str] = None
+    language: Optional[str] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> Path:
     """
     Transcribes audio/video to a formatted Word (.docx) document with styling and timestamps.
@@ -254,7 +285,12 @@ def transcribe_to_docx(
     out_dir = Path(output_dir) if output_dir else input_path.parent
     target_docx = get_unique_target_path(out_dir / f"{input_path.stem}_transcripcion.docx")
 
-    lang, duration, segments = transcribe_audio_segments(input_path, language=language, model_size=model_size)
+    lang, duration, segments = transcribe_audio_segments(
+        input_path, language=language, model_size=model_size, progress_callback=progress_callback
+    )
+
+    if progress_callback:
+        progress_callback(98, "Creando documento Word formateado...")
 
     doc = docx.Document()
 

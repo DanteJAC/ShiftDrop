@@ -4,15 +4,16 @@ Supports MP3, WAV, FLAC, M4A/AAC, OGG, Opus, AIFF, WMA, AC3, AMR, normalization,
 Non-destructive: never overwrites existing files.
 """
 from pathlib import Path
-from typing import Optional
-from shiftdrop.core.ffmpeg_helper import run_ffmpeg
+from typing import Optional, Callable
+from shiftdrop.core.ffmpeg_helper import run_ffmpeg, get_media_duration
 from shiftdrop.core.path_utils import get_unique_target_path
 
 def convert_audio(
     input_path: Path | str,
     output_format: str,
     bitrate: str = "320k",
-    output_dir: Optional[Path | str] = None
+    output_dir: Optional[Path | str] = None,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> Path:
     """
     Converts audio to target format (e.g., 'mp3', 'wav', 'flac', 'm4a', 'ogg', 'opus', 'aiff', 'wma', 'ac3', 'amr').
@@ -53,7 +54,8 @@ def convert_audio(
         args.extend(["-c:a", "libmp3lame"])
 
     args.append(str(target_path))
-    run_ffmpeg(args)
+    total_dur = get_media_duration(input_path)
+    run_ffmpeg(args, total_duration=total_dur, progress_callback=progress_callback)
     return target_path
 
 

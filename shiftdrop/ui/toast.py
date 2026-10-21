@@ -114,24 +114,58 @@ class ToastNotification(QWidget):
         self.auto_hide_timer.setSingleShot(True)
         self.auto_hide_timer.timeout.connect(self.hide)
 
+        # Smooth real-time progress interpolation timer
+        self._target_percent: float = 0.0
+        self._current_percent: float = 0.0
+        self._anim_timer = QTimer(self)
+        self._anim_timer.setInterval(40)  # ~25 FPS smooth interpolation
+        self._anim_timer.timeout.connect(self._on_anim_tick)
+
+    def _on_anim_tick(self):
+        if not self.isVisible() or self.progress_bar.isHidden():
+            self._anim_timer.stop()
+            return
+
+        diff = self._target_percent - self._current_percent
+        if abs(diff) > 0.4:
+            self._current_percent += diff * 0.25
+        elif self._target_percent < 90.0:
+            # Subtle alive micro-crawl so the user sees continuous visual motion
+            self._target_percent = min(92.0, self._target_percent + 0.06)
+            self._current_percent = self._target_percent
+
+        self.progress_bar.setValue(int(round(self._current_percent)))
+
     def show_progress(self, message: str, percent: int = 0):
         self.auto_hide_timer.stop()
         self.icon_label.setText("⏳")
         self.title_label.setText("Procesando...")
         pct = max(0, min(100, percent))
-        if pct > 0:
+        self._target_percent = float(pct)
+        if self._current_percent == 0 or pct < self._current_percent:
+            self._current_percent = float(pct)
+
+        if pct > 0 and f"{pct}%" not in message:
             self.desc_label.setText(f"{message} ({pct}%)")
         else:
             self.desc_label.setText(message)
+
         self.progress_bar.show()
         self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(pct)
+        self.progress_bar.setValue(int(round(self._current_percent)))
         self.open_folder_btn.hide()
+
+        if not self._anim_timer.isActive():
+            self._anim_timer.start()
+
         if not self.isVisible():
             self._position_bottom_right()
             self.show()
 
     def show_success(self, message: str, result_path: Optional[Path | str] = None):
+        self._anim_timer.stop()
+        self._current_percent = 0.0
+        self._target_percent = 0.0
         self.icon_label.setText("✅")
         self.title_label.setText("¡Listo!")
         self.desc_label.setText(message)
@@ -148,6 +182,9 @@ class ToastNotification(QWidget):
         self.auto_hide_timer.start(6000)  # Auto-hide after 6 seconds
 
     def show_error(self, message: str):
+        self._anim_timer.stop()
+        self._current_percent = 0.0
+        self._target_percent = 0.0
         self.icon_label.setText("⚠️")
         self.title_label.setText("Error en la operación")
         self.desc_label.setText(message)
